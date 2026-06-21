@@ -60,15 +60,20 @@ header{
 .brand .name{font-family:Georgia,serif; font-weight:700; font-size:18px; line-height:1.1;}
 .brand .name small{display:block; font-size:10px; letter-spacing:2px; color:var(--gold); font-weight:600;}
 nav.links{display:flex; gap:30px; align-items:center;}
-nav.links > a, nav.links > div{color:#cfd6e4; font-weight:600; font-size:14.5px; position:relative; padding:6px 0;}
+nav.links > a{color:#cfd6e4; font-weight:600; font-size:14.5px; line-height:1; position:relative; padding:6px 0; display:flex; align-items:center;}
+nav.links > div.dropdown{padding:0;}
 nav.links a:hover, nav.links a.active{color:var(--gold);}
 .nav-cta{display:flex; align-items:center; gap:18px;}
 .menu-toggle{display:none; background:none; border:none; color:#fff; font-size:26px; cursor:pointer;}
 
 /* SERVICES DROPDOWN */
-.dropdown{position:relative;}
-.has-dropdown{display:inline-flex; align-items:center; gap:5px; cursor:pointer;}
-.has-dropdown .caret{font-size:10px; transition:transform .2s ease;}
+.dropdown{position:relative; display:flex; align-items:center; height:100%;}
+.has-dropdown{
+  display:flex; align-items:center; gap:5px; cursor:pointer; color:#cfd6e4; font-weight:600;
+  font-size:14.5px; line-height:1; padding:6px 0;
+}
+.has-dropdown:hover{color:var(--gold);}
+.has-dropdown .caret{font-size:10px; line-height:1; display:inline-block; transition:transform .2s ease;}
 .dropdown-menu{
   position:absolute; top:36px; left:50%; transform:translateX(-50%); background:#fff;
   border-radius:8px; box-shadow:0 16px 36px rgba(13,31,60,0.25); padding:10px; width:280px;
@@ -78,6 +83,7 @@ nav.links a:hover, nav.links a.active{color:var(--gold);}
 .dropdown:hover .caret{transform:rotate(180deg);}
 .dropdown-menu a{
   display:block; padding:10px 14px; border-radius:6px; color:var(--navy) !important; font-size:14px; font-weight:600;
+  line-height:1.4;
 }
 .dropdown-menu a:hover{background:var(--cream); color:var(--gold) !important;}
 
@@ -88,7 +94,10 @@ nav.links a:hover, nav.links a.active{color:var(--gold);}
     transition:max-height .3s ease; border-top:1px solid rgba(212,161,61,0.2);
   }
   nav.links.open{max-height:600px; overflow-y:auto;}
-  nav.links > a, nav.links > div{width:100%; padding:14px 24px; border-bottom:1px solid rgba(255,255,255,0.06);}
+  nav.links > a, nav.links > div.dropdown{width:100%; padding:0; border-bottom:1px solid rgba(255,255,255,0.06);}
+  nav.links > a{padding:14px 24px;}
+  .dropdown{flex-direction:column; align-items:flex-start;}
+  .has-dropdown{width:100%; padding:14px 24px; justify-content:space-between;}
   .menu-toggle{display:block;}
   .dropdown-menu{position:static; opacity:1; visibility:visible; transform:none; width:100%; box-shadow:none;
     background:rgba(255,255,255,0.04); display:none; padding:0;}
