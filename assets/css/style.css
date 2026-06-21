@@ -198,6 +198,47 @@ nav.links a:hover, nav.links a.active{color:var(--gold);}
 @media(max-width:900px){.why-grid{grid-template-columns:1fr 1fr;}}
 @media(max-width:600px){.why-grid{grid-template-columns:1fr;}}
 
+/* REGULATORY UPDATES */
+.reg-updates{background:var(--cream);}
+.reg-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:26px; margin-top:46px; align-items:stretch;}
+.reg-card{
+  background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); padding:28px 26px;
+  border-top:5px solid; display:flex; flex-direction:column; transition:transform .25s ease;
+}
+.reg-card:hover{transform:translateY(-6px);}
+.reg-tax{border-top-color:var(--blue);}
+.reg-gst{border-top-color:var(--green);}
+.reg-icai{border-top-color:#9c7320;}
+.reg-card-head{display:flex; align-items:center; gap:14px; margin-bottom:18px;}
+.reg-ico{
+  width:48px; height:48px; min-width:48px; border-radius:10px; display:flex; align-items:center;
+  justify-content:center; font-size:22px;
+}
+.reg-tax .reg-ico{background:rgba(46,95,163,0.1);}
+.reg-gst .reg-ico{background:rgba(31,111,84,0.1);}
+.reg-icai .reg-ico{background:rgba(156,115,32,0.12);}
+.reg-card-head h3{font-size:16.5px; margin-bottom:2px;}
+.reg-source{font-size:12px; color:var(--muted); font-weight:600; letter-spacing:0.3px;}
+.reg-list{list-style:none; flex:1; margin-bottom:18px;}
+.reg-list li{font-size:13.5px; color:var(--text); padding:10px 0; border-bottom:1px solid #f0eee4; line-height:1.5;}
+.reg-list li:last-child{border-bottom:none;}
+.reg-date{
+  display:block; font-size:11px; font-weight:700; color:var(--blue); text-transform:uppercase;
+  letter-spacing:0.5px; margin-bottom:3px;
+}
+.reg-desc{font-size:14px; color:var(--muted); flex:1; margin-bottom:18px; line-height:1.6;}
+.reg-cta{
+  display:inline-block; font-size:13px; font-weight:700; padding:11px 0; text-align:center;
+  border-radius:6px; border:1.5px solid; margin-top:auto;
+}
+.reg-tax .reg-cta{color:var(--blue); border-color:var(--blue);}
+.reg-tax .reg-cta:hover{background:var(--blue); color:#fff;}
+.reg-gst .reg-cta{color:var(--green); border-color:var(--green);}
+.reg-gst .reg-cta:hover{background:var(--green); color:#fff;}
+.reg-icai .reg-cta{color:#9c7320; border-color:#9c7320;}
+.reg-icai .reg-cta:hover{background:#9c7320; color:#fff;}
+@media(max-width:900px){.reg-grid{grid-template-columns:1fr;}}
+
 /* TEAM */
 .team-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:28px; margin-top:46px;}
 .team-card{
