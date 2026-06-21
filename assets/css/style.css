@@ -145,8 +145,8 @@ nav.links a:hover, nav.links a.active{color:var(--gold);}
 .services-section{background:#fff;}
 .svc-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:46px;}
 .svc-card{
-  border-radius:var(--radius); padding:30px 26px; color:#fff; box-shadow:var(--shadow);
-  position:relative; overflow:hidden; transition:transform .25s ease;
+  display:block; border-radius:var(--radius); padding:30px 26px; color:#fff; box-shadow:var(--shadow);
+  position:relative; overflow:hidden; transition:transform .25s ease; cursor:pointer;
 }
 .svc-card:hover{transform:translateY(-8px);}
 .svc-card .num{font-family:Georgia,serif; font-size:34px; font-weight:700; opacity:0.5; margin-bottom:10px;}
@@ -287,3 +287,42 @@ footer{background:#08152b; color:#9aa4ba; padding:50px 0 24px; font-size:14px;}
 .page-hero{background:var(--navy); color:#fff; padding:70px 0 50px; text-align:center;}
 .page-hero h1{color:#fff;}
 .page-hero p{color:#cfd6e4; max-width:600px; margin:14px auto 0;}
+
+/* CHATBOT WIDGET */
+#psrb-chat-widget{position:fixed; bottom:24px; right:24px; z-index:2000; font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;}
+#psrb-chat-toggle{
+  width:58px; height:58px; border-radius:50%; background:var(--gold); border:none; cursor:pointer;
+  font-size:26px; box-shadow:0 10px 26px rgba(13,31,60,0.35); transition:transform .2s ease;
+}
+#psrb-chat-toggle:hover{transform:scale(1.08);}
+#psrb-chat-panel{
+  position:absolute; bottom:74px; right:0; width:340px; max-width:90vw; background:#fff;
+  border-radius:14px; box-shadow:0 20px 48px rgba(13,31,60,0.3); overflow:hidden;
+  display:flex; flex-direction:column; max-height:480px;
+}
+#psrb-chat-panel.hidden{display:none;}
+.psrb-chat-head{
+  background:var(--navy); color:#fff; padding:16px 18px; display:flex; justify-content:space-between; align-items:flex-start;
+}
+.psrb-chat-head strong{font-size:15px;}
+.psrb-chat-sub{font-size:12px; color:var(--gold-light); margin-top:2px;}
+#psrb-chat-close{background:none; border:none; color:#fff; font-size:22px; cursor:pointer; line-height:1;}
+#psrb-chat-body{
+  flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px;
+  background:var(--cream); min-height:180px; max-height:260px;
+}
+.psrb-msg{padding:10px 14px; border-radius:10px; font-size:13.5px; line-height:1.5; max-width:88%;}
+.psrb-msg a{color:var(--blue); font-weight:700;}
+.psrb-msg-bot{background:#fff; color:var(--text); align-self:flex-start; box-shadow:0 2px 8px rgba(13,31,60,0.08);}
+.psrb-msg-user{background:var(--navy); color:#fff; align-self:flex-end;}
+.psrb-chat-quick{display:flex; gap:6px; flex-wrap:wrap; padding:10px 14px; border-top:1px solid #eee; background:#fff;}
+.psrb-chat-quick button{
+  background:var(--cream); border:1px solid #e2dfd4; border-radius:14px; padding:6px 12px; font-size:11.5px;
+  font-weight:700; color:var(--navy); cursor:pointer;
+}
+.psrb-chat-quick button:hover{background:var(--gold); border-color:var(--gold);}
+#psrb-chat-form{display:flex; border-top:1px solid #eee; background:#fff;}
+#psrb-chat-input{flex:1; border:none; padding:13px 14px; font-size:13.5px; font-family:inherit; outline:none;}
+#psrb-chat-form button{background:var(--gold); color:var(--navy); border:none; padding:0 18px; font-weight:700; cursor:pointer; font-size:13.5px;}
+#psrb-chat-form button:hover{background:var(--gold-light);}
+@media(max-width:480px){#psrb-chat-panel{width:88vw; right:-6px;}}
