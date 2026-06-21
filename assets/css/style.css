@@ -320,6 +320,8 @@ footer{background:#08152b; color:#9aa4ba; padding:50px 0 24px; font-size:14px;}
 .footer-grid h4{color:#fff; font-size:15px; margin-bottom:16px;}
 .footer-grid ul{list-style:none;}
 .footer-grid li{margin-bottom:10px;}
+.footer-address{font-size:13px; line-height:1.6; margin-bottom:14px !important; color:#9aa4ba;}
+.footer-address strong{color:#cfd6e4; display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px;}
 .footer-grid a:hover{color:var(--gold);}
 .footer-brand{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
 .footer-bottom{text-align:center; padding-top:20px; font-size:13px;}
