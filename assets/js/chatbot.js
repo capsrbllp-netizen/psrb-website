@@ -1,5 +1,7 @@
 (function () {
   var ROOT_PREFIX = document.currentScript && document.currentScript.getAttribute('data-prefix') || '';
+  var API_URL = 'https://psrb-chat.ca-psrb-llp.workers.dev/';
+  var history = [];
 
   var FAQ = [
     { keys: ['audit', 'statutory audit', 'tax audit', 'internal audit', 'concurrent audit', 'bank audit', 'stock audit'],
@@ -38,7 +40,13 @@
     return html.split('PREFIX').join(ROOT_PREFIX);
   }
 
-  function findAnswer(text) {
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function localAnswer(text) {
     var q = text.toLowerCase();
     var best = null, bestScore = 0;
     FAQ.forEach(function (item) {
@@ -52,6 +60,26 @@
     return best ? withPrefix(best.answer) : withPrefix(DEFAULT_ANSWER);
   }
 
+  function linkify(text) {
+    // turn plain "contact page" style hints into nothing extra; just escape and preserve line breaks
+    return escapeHtml(text).replace(/\n/g, '<br>');
+  }
+
+  async function aiAnswer(text) {
+    history.push({ role: 'user', content: text });
+    var res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: history })
+    });
+    if (!res.ok) throw new Error('Bad response: ' + res.status);
+    var data = await res.json();
+    if (!data.reply) throw new Error('No reply field');
+    history.push({ role: 'assistant', content: data.reply });
+    if (history.length > 12) history = history.slice(-12);
+    return linkify(data.reply);
+  }
+
   function buildWidget() {
     var wrap = document.createElement('div');
     wrap.id = 'psrb-chat-widget';
@@ -59,7 +87,7 @@
       '<button id="psrb-chat-toggle" aria-label="Open chat">💬</button>' +
       '<div id="psrb-chat-panel" class="hidden">' +
         '<div class="psrb-chat-head">' +
-          '<div><strong>PSRB Assistant</strong><div class="psrb-chat-sub">Ask about our services</div></div>' +
+          '<div><strong>PSRB Assistant</strong><div class="psrb-chat-sub">AI-powered — ask about our services</div></div>' +
           '<button id="psrb-chat-close" aria-label="Close chat">&times;</button>' +
         '</div>' +
         '<div id="psrb-chat-body"></div>' +
@@ -90,21 +118,34 @@
       div.innerHTML = html;
       body.appendChild(div);
       body.scrollTop = body.scrollHeight;
+      return div;
+    }
+
+    function addTyping() {
+      var div = addMsg('<span class="psrb-typing"><span></span><span></span><span></span></span>', 'bot');
+      div.classList.add('psrb-typing-msg');
+      return div;
     }
 
     function greet() {
       if (body.children.length === 0) {
-        addMsg("Hi! 👋 I'm the PSRB &amp; Associates assistant. Ask me about our services, partners, or how to get in touch — or tap a quick option below.", 'bot');
+        addMsg("Hi! 👋 I'm the PSRB &amp; Associates AI assistant. Ask me anything about our services, partners, or how to get in touch — or tap a quick option below.", 'bot');
       }
     }
 
     function ask(text) {
       if (!text.trim()) return;
-      addMsg(text, 'user');
+      addMsg(escapeHtml(text), 'user');
       input.value = '';
-      setTimeout(function () {
-        addMsg(findAnswer(text), 'bot');
-      }, 350);
+      var typingEl = addTyping();
+
+      aiAnswer(text).then(function (reply) {
+        typingEl.remove();
+        addMsg(reply, 'bot');
+      }).catch(function () {
+        typingEl.remove();
+        addMsg(localAnswer(text), 'bot');
+      });
     }
 
     toggle.addEventListener('click', function () {
