@@ -237,7 +237,7 @@ nav.links a:hover, nav.links a.active{color:var(--gold);}
 
 /* FOOTER */
 footer{background:#08152b; color:#9aa4ba; padding:50px 0 24px; font-size:14px;}
-.footer-grid{display:grid; grid-template-columns:2fr 1fr 1fr; gap:40px; padding-bottom:30px; border-bottom:1px solid rgba(255,255,255,0.08);}
+.footer-grid{display:grid; grid-template-columns:1.8fr 1fr 1fr 1fr; gap:40px; padding-bottom:30px; border-bottom:1px solid rgba(255,255,255,0.08);}
 .footer-grid h4{color:#fff; font-size:15px; margin-bottom:16px;}
 .footer-grid ul{list-style:none;}
 .footer-grid li{margin-bottom:10px;}
