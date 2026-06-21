@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog | PSRB & Associates LLP</title>
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+<header>
+  <div class="container nav">
+    <a href="../index.html" class="brand">
+      <div class="mark">PS</div>
+      <div class="name">PSRB & Associates<small>CHARTERED ACCOUNTANTS</small></div>
+    </a>
+    <nav class="links">
+      <a href="../index.html">Home</a>
+      <a href="../index.html#about">About</a>
+      <a href="../services.html">Services</a>
+      <a href="../team.html">Our Team</a>
+      <a href="index.html" class="active">Blog</a>
+      <a href="../contact.html">Contact</a>
+    </nav>
+    <div class="nav-cta">
+      <a href="../contact.html" class="btn btn-gold">Book a Consultation</a>
+      <button class="menu-toggle">&#9776;</button>
+    </div>
+  </div>
+</header>
+
+<section class="blog-hero">
+  <div class="container">
+    <h1>Insights &amp; Updates</h1>
+    <p>Practical guidance on tax, audit, valuation, and finance — straight from our partners.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="blog-grid" id="blog-grid"></div>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="container">
+    <h2>Have a question for our <span>partners?</span></h2>
+    <p>Get in touch for a no-obligation consultation tailored to your business.</p>
+    <a href="../contact.html" class="btn btn-gold">Contact Us</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container footer-grid">
+    <div>
+      <div class="footer-brand">
+        <div class="mark" style="border-color:var(--gold);">PS</div>
+        <div style="color:#fff; font-family:Georgia,serif; font-weight:700;">PSRB &amp; Associates LLP</div>
+      </div>
+      <p>Chartered Accountants · Trusted Advisors · Financial Strategists · Growth Partners.</p>
+    </div>
+    <div>
+      <h4>Quick Links</h4>
+      <ul>
+        <li><a href="../index.html#about">About Us</a></li>
+        <li><a href="../services.html">Services</a></li>
+        <li><a href="../team.html">Our Team</a></li>
+        <li><a href="index.html">Blog</a></li>
+        <li><a href="../contact.html">Contact</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Contact</h4>
+      <ul>
+        <li>+91-9437634787</li>
+        <li>+91-7377496459</li>
+        <li><a href="mailto:ca.psrb.llp@gmail.com">ca.psrb.llp@gmail.com</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">&copy; 2026 PSRB &amp; Associates LLP — Chartered Accountants. All rights reserved.</div>
+</footer>
+<script src="../assets/js/script.js"></script>
+<script src="../assets/js/blog-data.js"></script>
+<script>
+  var grid = document.getElementById('blog-grid');
+  window.PSRB_POSTS.forEach(function(p){
+    grid.innerHTML += '<div class="post-card"><div class="post-thumb" style="background:'+p.color+';">'+p.icon+'</div><div class="post-body"><span class="post-cat">'+p.category+'</span><h3>'+p.title+'</h3><p>'+p.excerpt+'</p><div class="post-meta"><span>'+p.date+'</span><a href="'+p.slug+'.html">Read More →</a></div></div></div>';
+  });
+</script>
+</body>
+</html>
