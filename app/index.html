@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSRB Office OS — Management System</title>
+<style>
+:root {
+  --navy:#0d1f3c; --navy2:#162d52; --gold:#d4a13d; --gold2:#c49030;
+  --cream:#f8f5f0; --white:#ffffff; --muted:#6b7a99; --border:#e2e8f0;
+  --red:#e53e3e; --green:#38a169; --blue:#3182ce; --orange:#dd6b20;
+  --sidebar:240px; --hdr:60px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--cream);color:#1a202c;height:100vh;overflow:hidden;}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:9999;}
+.login-box{background:#fff;border-radius:16px;padding:48px 44px;width:420px;box-shadow:0 32px 80px rgba(0,0,0,0.4);}
+.login-logo{display:flex;align-items:center;gap:14px;margin-bottom:36px;}
+.login-logo .mark{width:52px;height:52px;border-radius:50%;border:3px solid var(--gold);display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:700;font-size:18px;color:var(--navy);}
+.login-logo .firm{font-family:Georgia,serif;font-size:17px;font-weight:700;color:var(--navy);line-height:1.3;}
+.login-logo .firm small{display:block;font-family:-apple-system,sans-serif;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+.login-title{font-size:22px;font-weight:700;color:var(--navy);margin-bottom:6px;}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:30px;}
+.form-group{margin-bottom:18px;}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.form-group input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;outline:none;transition:border-color .2s;}
+.form-group input:focus{border-color:var(--navy);}
+.login-btn{width:100%;padding:13px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:8px;}
+.login-btn:hover{background:var(--navy2);}
+.login-err{background:#fff5f5;color:var(--red);border:1px solid #fed7d7;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px;display:none;}
+.login-hint{margin-top:18px;padding:12px;background:var(--cream);border-radius:8px;font-size:12px;color:var(--muted);}
+.login-hint strong{color:var(--navy);}
+
+/* ── APP SHELL ── */
+#app{display:none;height:100vh;flex-direction:row;}
+#app.active{display:flex;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:var(--sidebar);background:var(--navy);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+.sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.08);}
+.sidebar-logo .mark{width:38px;height:38px;border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:14px;font-weight:700;color:#fff;margin-bottom:10px;}
+.sidebar-logo .firm-name{font-family:Georgia,serif;font-size:13px;font-weight:700;color:#fff;line-height:1.4;}
+.sidebar-logo small{font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;}
+.sidebar-section{padding:16px 12px 6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;margin:2px 8px;cursor:pointer;color:rgba(255,255,255,0.65);font-size:13.5px;font-weight:500;transition:all .15s;border:none;background:none;width:calc(100% - 16px);text-align:left;}
+.nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
+.nav-item.active{background:var(--gold);color:#fff;font-weight:600;}
+.nav-item .icon{width:18px;text-align:center;font-size:15px;flex-shrink:0;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;}
+.sidebar-footer{margin-top:auto;padding:16px 12px;border-top:1px solid rgba(255,255,255,0.08);}
+.user-card{display:flex;align-items:center;gap:10px;}
+.user-avatar{width:34px;height:34px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0;}
+.user-info{flex:1;min-width:0;}
+.user-name{font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-role{font-size:11px;color:rgba(255,255,255,0.45);}
+.logout-btn{background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.45);font-size:16px;padding:4px;}
+.logout-btn:hover{color:#fff;}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{height:var(--hdr);background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 28px;gap:16px;flex-shrink:0;}
+.topbar-title{font-size:18px;font-weight:700;color:var(--navy);}
+.topbar-sub{font-size:13px;color:var(--muted);margin-left:4px;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:7px 14px;}
+.search-box input{border:none;background:transparent;outline:none;font-size:13px;width:180px;}
+.btn{padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+.btn-primary{background:var(--navy);color:#fff;}
+.btn-primary:hover{background:var(--navy2);}
+.btn-gold{background:var(--gold);color:#fff;}
+.btn-gold:hover{background:var(--gold2);}
+.btn-outline{background:#fff;color:var(--navy);border:1.5px solid var(--border);}
+.btn-outline:hover{border-color:var(--navy);}
+.btn-sm{padding:5px 12px;font-size:12px;}
+.btn-danger{background:var(--red);color:#fff;}
+
+.content{flex:1;overflow-y:auto;padding:28px;}
+
+/* ── VIEWS ── */
+.view{display:none;}
+.view.active{display:block;}
+
+/* ── STATS GRID ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:28px;}
+.stat-card{background:#fff;border-radius:12px;padding:22px 24px;border:1px solid var(--border);}
+.stat-label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;}
+.stat-num{font-size:32px;font-weight:800;color:var(--navy);line-height:1;}
+.stat-change{font-size:12px;color:var(--green);margin-top:6px;}
+.stat-change.red{color:var(--red);}
+.stat-icon{font-size:28px;margin-bottom:8px;}
+
+/* ── CARD ── */
+.card{background:#fff;border-radius:12px;border:1px solid var(--border);padding:24px;margin-bottom:20px;}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.card-title{font-size:15px;font-weight:700;color:var(--navy);}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;padding:8px 12px;border-bottom:2px solid var(--border);text-align:left;white-space:nowrap;}
+td{padding:12px 12px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--cream);}
+.td-actions{display:flex;gap:6px;align-items:center;}
+
+/* ── BADGE / STATUS ── */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;}
+.badge-todo{background:#EDF2F7;color:#4A5568;}
+.badge-progress{background:#EBF8FF;color:#2B6CB0;}
+.badge-review{background:#FFFBEB;color:#92400E;}
+.badge-done{background:#F0FFF4;color:#276749;}
+.badge-overdue{background:#FFF5F5;color:#C53030;}
+.badge-high{background:#FFF5F5;color:var(--red);}
+.badge-medium{background:#FFFBEB;color:var(--orange);}
+.badge-low{background:#F0FFF4;color:var(--green);}
+.badge-active{background:#F0FFF4;color:var(--green);}
+.badge-inactive{background:#EDF2F7;color:#718096;}
+.priority-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+.dot-high{background:var(--red);}
+.dot-medium{background:var(--orange);}
+.dot-low{background:var(--green);}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:16px;padding:32px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:18px;font-weight:700;color:var(--navy);margin-bottom:24px;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.field input,.field select,.field textarea{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;outline:none;font-family:inherit;transition:border-color .2s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--navy);}
+.field textarea{resize:vertical;min-height:80px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+/* ── TIMELINE / PROGRESS ── */
+.progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:3px;background:var(--gold);}
+.progress-fill.green{background:var(--green);}
+.progress-fill.red{background:var(--red);}
+
+/* ── DEADLINE LIST ── */
+.deadline-item{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);}
+.deadline-item:last-child{border-bottom:none;}
+.deadline-date{width:48px;height:48px;border-radius:10px;background:var(--navy);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;}
+.deadline-date .dd{font-size:18px;font-weight:800;line-height:1;}
+.deadline-date .mm{font-size:9px;text-transform:uppercase;opacity:0.7;}
+.deadline-info{flex:1;}
+.deadline-title{font-size:14px;font-weight:600;color:var(--navy);}
+.deadline-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.deadline-days{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;}
+.days-ok{background:#F0FFF4;color:var(--green);}
+.days-warn{background:#FFFBEB;color:var(--orange);}
+.days-over{background:#FFF5F5;color:var(--red);}
+
+/* ── ACTIVITY ── */
+.activity-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+.activity-item:last-child{border-bottom:none;}
+.activity-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);margin-top:5px;flex-shrink:0;}
+.activity-text{font-size:13px;color:#2d3748;}
+.activity-time{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* ── EMPTY ── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-state .icon{font-size:48px;margin-bottom:16px;}
+.empty-state p{font-size:14px;}
+
+/* ── AVATAR ── */
+.avatar-sm{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
+.a1{background:#3182ce;}.a2{background:#38a169;}.a3{background:#805AD5;}.a4{background:#DD6B20;}
+
+/* ── NOTIFICATION ── */
+.toast{position:fixed;bottom:28px;right:28px;background:var(--navy);color:#fff;padding:14px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:9999;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.2);}
+.toast.show{display:block;}
+.toast.success{background:var(--green);}
+.toast.error{background:var(--red);}
+
+/* ── PROFILE SETTINGS ── */
+.profile-header{display:flex;align-items:center;gap:20px;margin-bottom:28px;}
+.profile-avatar-lg{width:72px;height:72px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;}
+
+/* responsive */
+@media(max-width:900px){
+  .sidebar{display:none;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .two-col,.three-col{grid-template-columns:1fr;}
+  .field-row{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="mark">CA</div>
+      <div class="firm">PSRB &amp; Associates LLP<small>Office Management System</small></div>
+    </div>
+    <div class="login-title">Welcome back</div>
+    <div class="login-sub">Sign in to access your office dashboard</div>
+    <div class="login-err" id="login-err">Invalid email or password.</div>
+    <div class="form-group">
+      <label>Email Address</label>
+      <input type="email" id="login-email" placeholder="you@psrb.com" value="">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="••••••••" value="">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign In →</button>
+    <div class="login-hint">
+      <strong>Demo accounts:</strong><br>
+      Admin: pankaj@psrb.com / Psrb@2025<br>
+      Partner: saubhagya@psrb.com / Partner@123
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="mark">CA</div>
+      <div class="firm-name">PSRB &amp; Associates<small>Office OS</small></div>
+    </div>
+    <div class="sidebar-section">Main</div>
+    <button class="nav-item active" onclick="showView('dashboard',this)"><span class="icon">🏠</span> Dashboard</button>
+    <button class="nav-item" onclick="showView('tasks',this)"><span class="icon">✅</span> Tasks <span class="nav-badge" id="pending-badge">0</span></button>
+    <button class="nav-item" onclick="showView('clients',this)"><span class="icon">👥</span> Clients</button>
+    <button class="nav-item" onclick="showView('deadlines',this)"><span class="icon">📅</span> Deadlines <span class="nav-badge" id="overdue-badge" style="display:none">!</span></button>
+    <div class="sidebar-section">Finance</div>
+    <button class="nav-item" onclick="showView('billing',this)"><span class="icon">💰</span> Billing & Fees</button>
+    <button class="nav-item" onclick="showView('documents',this)"><span class="icon">📁</span> Documents</button>
+    <div class="sidebar-section">Settings</div>
+    <button class="nav-item" onclick="showView('team',this)"><span class="icon">🧑‍💼</span> Team</button>
+    <button class="nav-item" onclick="showView('settings',this)"><span class="icon">⚙️</span> Settings</button>
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="sidebar-avatar">PS</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-name">Pankaj Sahoo</div>
+          <div class="user-role" id="sidebar-role">Managing Partner</div>
+        </div>
+        <button class="logout-btn" onclick="doLogout()" title="Logout">⏻</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <span class="topbar-title" id="topbar-title">Dashboard</span>
+        <span class="topbar-sub" id="topbar-date"></span>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box"><span>🔍</span><input type="text" placeholder="Search..." oninput="globalSearch(this.value)"></div>
+        <button class="btn btn-gold" onclick="openQuickAdd()">+ Quick Add</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="view active" id="view-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-label">Active Tasks</div><div class="stat-num" id="s-tasks">0</div><div class="stat-change" id="s-tasks-sub"></div></div>
+          <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-label">Total Clients</div><div class="stat-num" id="s-clients">0</div><div class="stat-change" id="s-clients-sub"></div></div>
+          <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-label">Upcoming Deadlines</div><div class="stat-num" id="s-deadlines">0</div><div class="stat-change" id="s-deadlines-sub"></div></div>
+          <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">Pending Fees (₹)</div><div class="stat-num" id="s-fees">0</div><div class="stat-change" id="s-fees-sub"></div></div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><div class="card-title">📋 My Tasks — This Week</div><button class="btn btn-sm btn-outline" onclick="showView('tasks',null)">View All</button></div>
+            <div id="dash-tasks"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">📅 Upcoming Deadlines</div><button class="btn btn-sm btn-outline" onclick="showView('deadlines',null)">View All</button></div>
+            <div id="dash-deadlines"></div>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><div class="card-title">🕐 Recent Activity</div></div>
+            <div id="dash-activity"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">📊 Task Status Overview</div></div>
+            <div id="dash-status-chart" style="padding:10px 0;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TASKS -->
+      <div class="view" id="view-tasks">
+        <div class="card">
+          <div class="card-header">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <div class="card-title">All Tasks</div>
+              <select id="task-filter-status" onchange="renderTasks()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;">
+                <option value="">All Status</option>
+                <option value="Todo">Todo</option>
+                <option value="In Progress">In Progress</option>
+                <option value="In Review">In Review</option>
+                <option value="Done">Done</option>
+              </select>
+              <select id="task-filter-priority" onchange="renderTasks()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;">
+                <option value="">All Priority</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="openTaskModal()">+ New Task</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Task</th><th>Client</th><th>Assigned To</th><th>Priority</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="tasks-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLIENTS -->
+      <div class="view" id="view-clients">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Client Directory</div>
+            <button class="btn btn-primary" onclick="openClientModal()">+ Add Client</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Client Name</th><th>Type</th><th>PAN / GSTIN</th><th>Contact</th><th>Service</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="clients-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- DEADLINES -->
+      <div class="view" id="view-deadlines">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Compliance Deadline Calendar</div>
+            <button class="btn btn-primary" onclick="openDeadlineModal()">+ Add Deadline</button>
+          </div>
+          <div id="deadlines-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">📌 Standard Compliance Calendar</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Filing</th><th>Due Date (Monthly)</th><th>Applicable To</th><th>Penalty</th></tr></thead>
+              <tbody>
+                <tr><td>GSTR-1 (Monthly)</td><td>11th of next month</td><td>All regular taxpayers</td><td>₹50/day (max ₹5,000)</td></tr>
+                <tr><td>GSTR-3B</td><td>20th of next month</td><td>All regular taxpayers</td><td>₹50/day + interest 18%</td></tr>
+                <tr><td>TDS Payment (Sec 200)</td><td>7th of next month</td><td>All deductors</td><td>1.5% per month</td></tr>
+                <tr><td>TDS Return (Q1)</td><td>31st July</td><td>All deductors</td><td>₹200/day</td></tr>
+                <tr><td>TDS Return (Q2)</td><td>31st October</td><td>All deductors</td><td>₹200/day</td></tr>
+                <tr><td>TDS Return (Q3)</td><td>31st January</td><td>All deductors</td><td>₹200/day</td></tr>
+                <tr><td>TDS Return (Q4)</td><td>31st May</td><td>All deductors</td><td>₹200/day</td></tr>
+                <tr><td>Income Tax Return (Non-audit)</td><td>31st July</td><td>Individuals / HUF</td><td>₹5,000 u/s 234F</td></tr>
+                <tr><td>Income Tax Return (Audit cases)</td><td>31st October</td><td>Companies / Audit cases</td><td>₹5,000 u/s 234F</td></tr>
+                <tr><td>ROC Annual Filing (AOC-4)</td><td>29th October</td><td>Companies</td><td>₹100/day</td></tr>
+                <tr><td>ROC Annual Filing (MGT-7)</td><td>28th November</td><td>Companies</td><td>₹100/day</td></tr>
+                <tr><td>PF ECR</td><td>15th of next month</td><td>All PF employers</td><td>Damages 5-25%</td></tr>
+                <tr><td>ESI Contribution</td><td>15th of next month</td><td>All ESI employers</td><td>12% simple interest</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- BILLING -->
+      <div class="view" id="view-billing">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-label">Total Billed (FY)</div><div class="stat-num" id="b-billed">₹0</div></div>
+          <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-label">Collected</div><div class="stat-num" id="b-collected">₹0</div></div>
+          <div class="stat-card"><div class="stat-icon">⏳</div><div class="stat-label">Outstanding</div><div class="stat-num" id="b-outstanding">₹0</div></div>
+          <div class="stat-card"><div class="stat-icon">📋</div><div class="stat-label">Total Invoices</div><div class="stat-num" id="b-count">0</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Fee Register</div>
+            <button class="btn btn-primary" onclick="openBillingModal()">+ Raise Invoice</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Invoice #</th><th>Client</th><th>Service</th><th>Amount (₹)</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="billing-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- DOCUMENTS -->
+      <div class="view" id="view-documents">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Document Register</div>
+            <button class="btn btn-primary" onclick="openDocModal()">+ Add Document</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Document Name</th><th>Client</th><th>Type</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="docs-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEAM -->
+      <div class="view" id="view-team">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Team Members</div>
+            <button class="btn btn-primary" onclick="openTeamModal()">+ Add Member</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Specialisation</th><th>Active Tasks</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="team-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="view" id="view-settings">
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><div class="card-title">👤 My Profile</div></div>
+            <div class="profile-header">
+              <div class="profile-avatar-lg" id="profile-avatar-lg">PS</div>
+              <div><div style="font-size:18px;font-weight:700;" id="profile-name-lg">Pankaj Sahoo</div><div style="color:var(--muted);font-size:13px;" id="profile-role-lg">Managing Partner</div></div>
+            </div>
+            <div class="field"><label>Full Name</label><input type="text" id="pref-name" placeholder="Your name"></div>
+            <div class="field"><label>Email</label><input type="email" id="pref-email" placeholder="your@email.com" readonly style="background:var(--cream)"></div>
+            <div class="field"><label>Phone</label><input type="text" id="pref-phone" placeholder="+91-XXXXXXXXXX"></div>
+            <div class="field"><label>New Password</label><input type="password" id="pref-pass" placeholder="Leave blank to keep current"></div>
+            <button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>
+          </div>
+          <div>
+            <div class="card" style="margin-bottom:20px;">
+              <div class="card-header"><div class="card-title">🏢 Firm Details</div></div>
+              <div class="field"><label>Firm Name</label><input type="text" value="PSRB &amp; Associates LLP" readonly style="background:var(--cream)"></div>
+              <div class="field"><label>ICAI Registration</label><input type="text" value="CA Firm" style="background:var(--cream)" readonly></div>
+              <div class="field"><label>Corporate Office</label><input type="text" value="Satya Vihar, Rasulgarh, Bhubaneswar" readonly style="background:var(--cream)"></div>
+              <div class="field"><label>Branch Office</label><input type="text" value="Buddha Vihar, Bhadrak, Odisha" readonly style="background:var(--cream)"></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">🗑️ Data Management</div></div>
+              <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">All data is stored locally in your browser. Export to keep a backup.</p>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn btn-outline" onclick="exportData()">📥 Export Data</button>
+                <button class="btn btn-outline" onclick="importData()">📤 Import Data</button>
+                <button class="btn btn-danger btn-sm" onclick="clearData()">🗑️ Clear All Data</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-task">
+  <div class="modal">
+    <div class="modal-title" id="task-modal-title">New Task</div>
+    <input type="hidden" id="task-edit-id">
+    <div class="field"><label>Task Title *</label><input type="text" id="t-title" placeholder="e.g. Prepare GST Return for July"></div>
+    <div class="field-row">
+      <div class="field"><label>Client</label><select id="t-client"><option value="">— Select Client —</option></select></div>
+      <div class="field"><label>Assigned To *</label><select id="t-assignee"><option value="">— Select Member —</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Priority</label><select id="t-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+      <div class="field"><label>Status</label><select id="t-status"><option>Todo</option><option>In Progress</option><option>In Review</option><option>Done</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Due Date *</label><input type="date" id="t-due"></div>
+      <div class="field"><label>Category</label><select id="t-category"><option>GST</option><option>Income Tax</option><option>Audit</option><option>Valuation</option><option>ROC/MCA</option><option>TDS</option><option>MSME</option><option>Banking</option><option>Advisory</option><option>Other</option></select></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="t-notes" placeholder="Additional details..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-task')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-client">
+  <div class="modal">
+    <div class="modal-title" id="client-modal-title">Add Client</div>
+    <input type="hidden" id="client-edit-id">
+    <div class="field-row">
+      <div class="field"><label>Client / Business Name *</label><input type="text" id="c-name" placeholder="e.g. ABC Pvt Ltd"></div>
+      <div class="field"><label>Entity Type</label><select id="c-type"><option>Private Limited</option><option>LLP</option><option>Partnership</option><option>Proprietorship</option><option>Trust/NGO</option><option>HUF</option><option>Individual</option><option>Public Limited</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>PAN Number</label><input type="text" id="c-pan" placeholder="ABCDE1234F" maxlength="10" style="text-transform:uppercase"></div>
+      <div class="field"><label>GSTIN</label><input type="text" id="c-gst" placeholder="22AAAAA0000A1Z5" maxlength="15"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Contact Person</label><input type="text" id="c-contact" placeholder="Name"></div>
+      <div class="field"><label>Phone</label><input type="text" id="c-phone" placeholder="+91-XXXXXXXXXX"></div>
+    </div>
+    <div class="field"><label>Email</label><input type="email" id="c-email" placeholder="client@email.com"></div>
+    <div class="field"><label>Services Availed</label><select id="c-service"><option>GST & Compliance</option><option>Income Tax</option><option>Audit & Assurance</option><option>Valuation</option><option>Project Finance</option><option>IFC / SOP</option><option>MSME Advisory</option><option>Full Retainer</option></select></div>
+    <div class="field-row">
+      <div class="field"><label>Annual Fee (₹)</label><input type="number" id="c-fee" placeholder="50000"></div>
+      <div class="field"><label>Status</label><select id="c-status"><option>Active</option><option>Inactive</option></select></div>
+    </div>
+    <div class="field"><label>Address</label><textarea id="c-address" placeholder="Full address..." style="min-height:60px;"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-client')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveClient()">Save Client</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-deadline">
+  <div class="modal">
+    <div class="modal-title">Add Compliance Deadline</div>
+    <input type="hidden" id="dl-edit-id">
+    <div class="field"><label>Filing / Compliance Name *</label><input type="text" id="dl-title" placeholder="e.g. GSTR-1 for July 2026"></div>
+    <div class="field-row">
+      <div class="field"><label>Due Date *</label><input type="date" id="dl-date"></div>
+      <div class="field"><label>Client</label><select id="dl-client"><option value="">All / General</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Category</label><select id="dl-cat"><option>GST</option><option>Income Tax</option><option>TDS</option><option>ROC/MCA</option><option>PF/ESI</option><option>Audit</option><option>Other</option></select></div>
+      <div class="field"><label>Assigned To</label><select id="dl-assignee"><option value="">— Unassigned —</option></select></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="dl-notes" placeholder="Penalty details, remarks..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-deadline')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDeadline()">Save Deadline</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-billing">
+  <div class="modal">
+    <div class="modal-title" id="billing-modal-title">Raise Invoice</div>
+    <input type="hidden" id="bill-edit-id">
+    <div class="field-row">
+      <div class="field"><label>Client *</label><select id="bill-client"><option value="">— Select —</option></select></div>
+      <div class="field"><label>Service</label><select id="bill-service"><option>GST & Compliance</option><option>Income Tax Return</option><option>Audit</option><option>Valuation</option><option>Project Finance</option><option>Advisory</option><option>ROC Filing</option><option>TDS Return</option><option>Other</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Amount (₹) *</label><input type="number" id="bill-amount" placeholder="25000"></div>
+      <div class="field"><label>Invoice Date</label><input type="date" id="bill-date"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Status</label><select id="bill-status"><option>Pending</option><option>Paid</option><option>Partially Paid</option></select></div>
+      <div class="field"><label>Due Date</label><input type="date" id="bill-due"></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="bill-notes" placeholder="Invoice remarks..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-billing')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBilling()">Save Invoice</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-doc">
+  <div class="modal">
+    <div class="modal-title">Add Document</div>
+    <input type="hidden" id="doc-edit-id">
+    <div class="field"><label>Document Name *</label><input type="text" id="doc-name" placeholder="e.g. Balance Sheet FY 2025-26"></div>
+    <div class="field-row">
+      <div class="field"><label>Client</label><select id="doc-client"><option value="">— General —</option></select></div>
+      <div class="field"><label>Document Type</label><select id="doc-type"><option>Financial Statement</option><option>Tax Return</option><option>GST Return</option><option>TDS Return</option><option>ROC Filing</option><option>Agreement</option><option>Certificate</option><option>Valuation Report</option><option>Other</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Date</label><input type="date" id="doc-date"></div>
+      <div class="field"><label>Status</label><select id="doc-status"><option>Pending</option><option>Drafted</option><option>Filed</option><option>Completed</option></select></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="doc-notes" placeholder="Reference number, remarks..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-doc')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDoc()">Save Document</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-team">
+  <div class="modal">
+    <div class="modal-title" id="team-modal-title">Add Team Member</div>
+    <input type="hidden" id="tm-edit-id">
+    <div class="field-row">
+      <div class="field"><label>Full Name *</label><input type="text" id="tm-name" placeholder="CA Full Name"></div>
+      <div class="field"><label>Role</label><select id="tm-role"><option>Managing Partner</option><option>Partner</option><option>Senior Manager</option><option>Manager</option><option>Article Assistant</option><option>Staff</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Email</label><input type="email" id="tm-email" placeholder="member@psrb.com"></div>
+      <div class="field"><label>Phone</label><input type="text" id="tm-phone" placeholder="+91-XXXXXXXXXX"></div>
+    </div>
+    <div class="field"><label>Specialisation</label><input type="text" id="tm-spec" placeholder="e.g. GST & Income Tax"></div>
+    <div class="field"><label>System Password (for login)</label><input type="password" id="tm-pass" placeholder="Set login password"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-team')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTeam()">Save Member</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-quickadd">
+  <div class="modal" style="width:380px;">
+    <div class="modal-title">Quick Add</div>
+    <div style="display:grid;gap:12px;">
+      <button class="btn btn-primary" style="padding:16px;font-size:15px;text-align:left;" onclick="closeModal('modal-quickadd');openTaskModal()">✅ &nbsp; New Task</button>
+      <button class="btn btn-primary" style="padding:16px;font-size:15px;text-align:left;" onclick="closeModal('modal-quickadd');openClientModal()">👥 &nbsp; New Client</button>
+      <button class="btn btn-primary" style="padding:16px;font-size:15px;text-align:left;" onclick="closeModal('modal-quickadd');openDeadlineModal()">📅 &nbsp; New Deadline</button>
+      <button class="btn btn-primary" style="padding:16px;font-size:15px;text-align:left;" onclick="closeModal('modal-quickadd');openBillingModal()">💰 &nbsp; Raise Invoice</button>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-quickadd')">Cancel</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATA ──
+var USERS = [
+  {email:'pankaj@psrb.com',pass:'Psrb@2025',name:'Pankaj Sahoo',role:'Managing Partner',initials:'PS',color:'#3182ce'},
+  {email:'saubhagya@psrb.com',pass:'Partner@123',name:'Saubhagya Ranjan Bal',role:'Partner',initials:'SB',color:'#38a169'},
+  {email:'laxmi@psrb.com',pass:'Partner@123',name:'Laxmi Prasad Maharana',role:'Partner',initials:'LP',color:'#805AD5'},
+  {email:'rakesh@psrb.com',pass:'Partner@123',name:'Rakesh Ranjan Pal',role:'Partner',initials:'RR',color:'#DD6B20'}
+];
+
+var DB = {
+  tasks:[], clients:[], deadlines:[], billing:[], documents:[], team:[], activity:[], currentUser:null,
+  nextId:{task:1,client:1,deadline:1,billing:1,doc:1,team:1}
+};
+
+function load(){
+  var saved = localStorage.getItem('psrb_os_v2');
+  if(saved){ try{ var d=JSON.parse(saved); Object.assign(DB,d); }catch(e){} }
+  // Seed team from partners if empty
+  if(!DB.team || DB.team.length===0){
+    DB.team=[
+      {id:1,name:'Pankaj Sahoo',role:'Managing Partner',email:'pankaj@psrb.com',phone:'+91-9437634787',spec:'Valuation, Treasury & Project Finance',pass:'Psrb@2025',active:true},
+      {id:2,name:'Saubhagya Ranjan Bal',role:'Partner',email:'saubhagya@psrb.com',phone:'',spec:'GST & Income Tax',pass:'Partner@123',active:true},
+      {id:3,name:'Laxmi Prasad Maharana',role:'Partner',email:'laxmi@psrb.com',phone:'',spec:'Industry & Process Advisory',pass:'Partner@123',active:true},
+      {id:4,name:'Rakesh Ranjan Pal',role:'Partner',email:'rakesh@psrb.com',phone:'',spec:'Audit & Assurance',pass:'Partner@123',active:true}
+    ];
+    DB.nextId.team=5;
+    save();
+  }
+  // Seed sample clients if empty
+  if(!DB.clients || DB.clients.length===0){
+    DB.clients=[
+      {id:1,name:'Sunrise Steel Pvt Ltd',type:'Private Limited',pan:'AAXCS1234F',gstin:'21AAXCS1234F1Z5',contact:'Ramesh Kumar',phone:'+91-9876543210',email:'ramesh@sunrisesteel.com',service:'Audit & Assurance',fee:120000,status:'Active',address:'Cuttack, Odisha'},
+      {id:2,name:'Odisha Traders LLP',type:'LLP',pan:'AAFO12345G',gstin:'21AAFO12345G1Z2',contact:'Suresh Patel',phone:'+91-9123456789',email:'suresh@orishatrade.com',service:'GST & Compliance',fee:60000,status:'Active',address:'Bhubaneswar, Odisha'},
+      {id:3,name:'Green Agro Industries',type:'Partnership',pan:'AAGGI5678H',gstin:'',contact:'Priya Nayak',phone:'+91-9988776655',email:'priya@greenagro.in',service:'Income Tax',fee:40000,status:'Active',address:'Bhadrak, Odisha'}
+    ];
+    DB.nextId.client=4;
+    save();
+  }
+  // Seed tasks if empty
+  if(!DB.tasks || DB.tasks.length===0){
+    var today=new Date(); var d7=new Date(today); d7.setDate(d7.getDate()+7);
+    DB.tasks=[
+      {id:1,title:'GSTR-1 Filing for Sunrise Steel',client:'Sunrise Steel Pvt Ltd',assignee:'Saubhagya Ranjan Bal',priority:'High',status:'In Progress',due:fmt(d7),category:'GST',notes:'Monthly filing for June 2026',created:new Date().toISOString()},
+      {id:2,title:'Income Tax Return — Odisha Traders',client:'Odisha Traders LLP',assignee:'Pankaj Sahoo',priority:'Medium',status:'Todo',due:fmt(new Date(today.getTime()+14*86400000)),category:'Income Tax',notes:'',created:new Date().toISOString()}
+    ];
+    DB.nextId.task=3;
+    save();
+  }
+  // Seed deadlines
+  if(!DB.deadlines || DB.deadlines.length===0){
+    var t=new Date();
+    var d1=new Date(t.getFullYear(),t.getMonth(),20); if(d1<t){d1.setMonth(d1.getMonth()+1);}
+    var d2=new Date(t.getFullYear(),t.getMonth(),11); if(d2<t){d2.setMonth(d2.getMonth()+1);}
+    var d3=new Date(t.getFullYear(),t.getMonth(),7); if(d3<t){d3.setMonth(d3.getMonth()+1);}
+    DB.deadlines=[
+      {id:1,title:'GSTR-3B Monthly Filing',date:fmt(d1),client:'',category:'GST',assignee:'Saubhagya Ranjan Bal',notes:'All regular taxpayers'},
+      {id:2,title:'GSTR-1 Monthly Filing',date:fmt(d2),client:'',category:'GST',assignee:'Saubhagya Ranjan Bal',notes:'Outward supply details'},
+      {id:3,title:'TDS Payment',date:fmt(d3),client:'',category:'TDS',assignee:'Pankaj Sahoo',notes:'Section 200 — all deductors'}
+    ];
+    DB.nextId.deadline=4;
+    save();
+  }
+}
+function save(){ localStorage.setItem('psrb_os_v2',JSON.stringify(DB)); }
+function fmt(d){ return d.toISOString().split('T')[0]; }
+function today(){ return fmt(new Date()); }
+function daysUntil(dateStr){ return Math.ceil((new Date(dateStr)-new Date(today()))/(86400000)); }
+
+// ── AUTH ──
+function doLogin(){
+  var email=(document.getElementById('login-email').value||'').toLowerCase().trim();
+  var pass=document.getElementById('login-pass').value;
+  var err=document.getElementById('login-err');
+  // Check built-in users
+  var u=USERS.find(function(u){return u.email===email && u.pass===pass;});
+  // Also check team members
+  if(!u && DB.team){
+    var tm=DB.team.find(function(t){return (t.email||'').toLowerCase()===email && t.pass===pass;});
+    if(tm) u={email:tm.email,name:tm.name,role:tm.role,initials:tm.name.split(' ').map(function(n){return n[0];}).join('').substring(0,2).toUpperCase()};
+  }
+  if(!u){ err.style.display='block'; return; }
+  err.style.display='none';
+  DB.currentUser=u;
+  save();
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').classList.add('active');
+  var ini=u.initials||(u.name.split(' ').map(function(n){return n[0];}).join('').substring(0,2).toUpperCase());
+  document.getElementById('sidebar-avatar').textContent=ini;
+  document.getElementById('sidebar-name').textContent=u.name;
+  document.getElementById('sidebar-role').textContent=u.role;
+  document.getElementById('profile-avatar-lg').textContent=ini;
+  document.getElementById('profile-name-lg').textContent=u.name;
+  document.getElementById('profile-role-lg').textContent=u.role;
+  document.getElementById('pref-name').value=u.name;
+  document.getElementById('pref-email').value=u.email;
+  document.getElementById('topbar-date').textContent='— '+new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  logActivity('Signed in');
+  refreshAll();
+}
+function doLogout(){
+  logActivity('Signed out');
+  save();
+  DB.currentUser=null;
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-pass').value='';
+}
+// Enter key on login
+document.getElementById('login-pass').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+document.getElementById('login-email').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+
+// ── NAVIGATION ──
+function showView(id, btn){
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
+  document.getElementById('view-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+  if(btn) btn.classList.add('active');
+  var titles={dashboard:'Dashboard',tasks:'Tasks',clients:'Clients',deadlines:'Deadlines',billing:'Billing & Fees',documents:'Documents',team:'Team',settings:'Settings'};
+  document.getElementById('topbar-title').textContent=titles[id]||id;
+  if(id==='tasks') renderTasks();
+  if(id==='clients') renderClients();
+  if(id==='deadlines') renderDeadlines();
+  if(id==='billing') renderBilling();
+  if(id==='documents') renderDocs();
+  if(id==='team') renderTeam();
+  if(id==='dashboard') renderDashboard();
+}
+
+// ── REFRESH ALL ──
+function refreshAll(){
+  updateBadges();
+  renderDashboard();
+}
+
+function updateBadges(){
+  var pending=(DB.tasks||[]).filter(function(t){return t.status!=='Done';}).length;
+  var pb=document.getElementById('pending-badge');
+  pb.textContent=pending; pb.style.display=pending>0?'':'none';
+  var overdue=(DB.deadlines||[]).filter(function(d){return daysUntil(d.date)<0;}).length;
+  var ob=document.getElementById('overdue-badge');
+  ob.style.display=overdue>0?'':'none';
+}
+
+// ── DASHBOARD ──
+function renderDashboard(){
+  var tasks=DB.tasks||[], clients=DB.clients||[], deadlines=DB.deadlines||[], billing=DB.billing||[];
+  var activeTasks=tasks.filter(function(t){return t.status!=='Done';});
+  var upcoming=deadlines.filter(function(d){return daysUntil(d.date)>=0 && daysUntil(d.date)<=30;});
+  var pendingFees=billing.filter(function(b){return b.status!=='Paid';}).reduce(function(s,b){return s+(+b.amount||0);},0);
+  document.getElementById('s-tasks').textContent=activeTasks.length;
+  document.getElementById('s-tasks-sub').textContent=tasks.filter(function(t){return t.priority==='High'&&t.status!=='Done';}).length+' high priority';
+  document.getElementById('s-clients').textContent=clients.length;
+  document.getElementById('s-clients-sub').textContent=clients.filter(function(c){return c.status==='Active';}).length+' active';
+  document.getElementById('s-deadlines').textContent=upcoming.length;
+  document.getElementById('s-deadlines-sub').textContent=deadlines.filter(function(d){return daysUntil(d.date)<0;}).length+' overdue';
+  document.getElementById('s-fees').textContent='₹'+pendingFees.toLocaleString('en-IN');
+  document.getElementById('s-fees-sub').textContent=billing.filter(function(b){return b.status!=='Paid';}).length+' invoices pending';
+
+  // Dash tasks
+  var dt=document.getElementById('dash-tasks');
+  var show=tasks.filter(function(t){return t.status!=='Done';}).slice(0,6);
+  if(!show.length){ dt.innerHTML='<div class="empty-state"><div class="icon">🎉</div><p>All tasks completed!</p></div>'; }
+  else{ dt.innerHTML=show.map(function(t){
+    return '<div class="deadline-item"><div style="flex:1"><div class="deadline-title">'+esc(t.title)+'</div><div class="deadline-sub">'+esc(t.client||'—')+' · '+esc(t.assignee||'Unassigned')+'</div></div>'+
+    '<span class="badge badge-'+statusClass(t.status)+'">'+t.status+'</span>'+'<span class="deadline-days days-'+daysClass(daysUntil(t.due))+'">'+daysLabel(daysUntil(t.due))+'</span></div>';
+  }).join(''); }
+
+  // Dash deadlines
+  var dd=document.getElementById('dash-deadlines');
+  var sdl=deadlines.sort(function(a,b){return new Date(a.date)-new Date(b.date);}).slice(0,6);
+  if(!sdl.length){ dd.innerHTML='<div class="empty-state"><div class="icon">📅</div><p>No deadlines added yet.</p></div>'; }
+  else{ dd.innerHTML=sdl.map(function(d){
+    var dt2=new Date(d.date); var days=daysUntil(d.date);
+    return '<div class="deadline-item"><div class="deadline-date"><div class="dd">'+dt2.getDate()+'</div><div class="mm">'+dt2.toLocaleString('default',{month:'short'})+'</div></div>'+
+    '<div class="deadline-info"><div class="deadline-title">'+esc(d.title)+'</div><div class="deadline-sub">'+esc(d.category)+(d.client?' · '+esc(d.client):'')+'</div></div>'+
+    '<span class="deadline-days days-'+daysClass(days)+'">'+daysLabel(days)+'</span></div>';
+  }).join(''); }
+
+  // Activity
+  var da=document.getElementById('dash-activity');
+  var act=(DB.activity||[]).slice(-8).reverse();
+  if(!act.length){ da.innerHTML='<div class="empty-state"><div class="icon">🕐</div><p>No activity yet.</p></div>'; }
+  else{ da.innerHTML=act.map(function(a){return '<div class="activity-item"><div class="activity-dot"></div><div><div class="activity-text">'+esc(a.text)+'</div><div class="activity-time">'+new Date(a.ts).toLocaleString('en-IN')+'</div></div></div>';}).join(''); }
+
+  // Status chart
+  var dc=document.getElementById('dash-status-chart');
+  var counts={Todo:0,'In Progress':0,'In Review':0,Done:0};
+  tasks.forEach(function(t){counts[t.status]=(counts[t.status]||0)+1;});
+  var total=tasks.length||1;
+  dc.innerHTML=Object.keys(counts).map(function(k){
+    var pct=Math.round(counts[k]/total*100);
+    var clr={Todo:'#718096','In Progress':'#3182ce','In Review':'#D69E2E',Done:'#38a169'}[k];
+    return '<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>'+k+'</span><span style="font-weight:700;">'+counts[k]+'</span></div><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;background:'+clr+';"></div></div></div>';
+  }).join('');
+}
+
+// ── TASKS ──
+function renderTasks(){
+  var fs=document.getElementById('task-filter-status').value;
+  var fp=document.getElementById('task-filter-priority').value;
+  var data=(DB.tasks||[]).filter(function(t){return (!fs||t.status===fs)&&(!fp||t.priority===fp);});
+  var tbody=document.getElementById('tasks-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">✅</div><p>No tasks found.</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.sort(function(a,b){return new Date(a.due)-new Date(b.due);}).map(function(t){
+    var days=daysUntil(t.due);
+    return '<tr><td><strong>'+esc(t.title)+'</strong><br><span style="font-size:11px;color:var(--muted);">'+esc(t.category)+'</span></td>'+
+    '<td>'+esc(t.client||'—')+'</td>'+
+    '<td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar-sm a1">'+initials(t.assignee)+'</div>'+esc(t.assignee||'—')+'</div></td>'+
+    '<td><span class="priority-dot dot-'+t.priority.toLowerCase()+'"></span>'+t.priority+'</td>'+
+    '<td>'+fmtDate(t.due)+'<br><span style="font-size:11px;" class="deadline-days days-'+daysClass(days)+'" style="padding:2px 6px;">'+daysLabel(days)+'</span></td>'+
+    '<td><span class="badge badge-'+statusClass(t.status)+'">'+t.status+'</span></td>'+
+    '<td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editTask('+t.id+')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteTask('+t.id+')">Del</button></td></tr>';
+  }).join('');
+  updateBadges();
+}
+function openTaskModal(){ populateDropdowns(); document.getElementById('task-edit-id').value=''; document.getElementById('task-modal-title').textContent='New Task'; ['t-title','t-notes'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('t-due').value=today(); document.getElementById('modal-task').classList.add('open'); }
+function editTask(id){ populateDropdowns(); var t=DB.tasks.find(function(x){return x.id===id;}); if(!t)return; document.getElementById('task-edit-id').value=id; document.getElementById('task-modal-title').textContent='Edit Task'; document.getElementById('t-title').value=t.title; document.getElementById('t-client').value=t.client||''; document.getElementById('t-assignee').value=t.assignee||''; document.getElementById('t-priority').value=t.priority; document.getElementById('t-status').value=t.status; document.getElementById('t-due').value=t.due; document.getElementById('t-category').value=t.category; document.getElementById('t-notes').value=t.notes||''; document.getElementById('modal-task').classList.add('open'); }
+function saveTask(){ var title=document.getElementById('t-title').value.trim(); if(!title){alert('Task title required.');return;} var eid=document.getElementById('task-edit-id').value; var task={title:title,client:document.getElementById('t-client').value,assignee:document.getElementById('t-assignee').value,priority:document.getElementById('t-priority').value,status:document.getElementById('t-status').value,due:document.getElementById('t-due').value,category:document.getElementById('t-category').value,notes:document.getElementById('t-notes').value}; if(eid){var idx=DB.tasks.findIndex(function(x){return x.id==eid;});if(idx>=0){task.id=+eid;task.created=DB.tasks[idx].created;DB.tasks[idx]=task;logActivity('Updated task: '+title);}}else{task.id=DB.nextId.task++;task.created=new Date().toISOString();DB.tasks.push(task);logActivity('Created task: '+title);} save();closeModal('modal-task');renderTasks();renderDashboard();toast('Task saved!','success'); }
+function deleteTask(id){ if(!confirm('Delete this task?'))return; var t=DB.tasks.find(function(x){return x.id===id;}); DB.tasks=DB.tasks.filter(function(x){return x.id!==id;}); logActivity('Deleted task: '+(t?t.title:'')); save();renderTasks();renderDashboard();toast('Task deleted.'); }
+
+// ── CLIENTS ──
+function renderClients(){
+  var data=DB.clients||[];
+  var tbody=document.getElementById('clients-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">👥</div><p>No clients yet. Add your first client!</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.map(function(c){
+    return '<tr><td><strong>'+esc(c.name)+'</strong></td><td>'+esc(c.type)+'</td><td><span style="font-size:12px;">'+esc(c.pan||'—')+'</span><br><span style="font-size:11px;color:var(--muted);">'+esc(c.gstin||'—')+'</span></td><td>'+esc(c.contact||'—')+'<br><span style="font-size:12px;color:var(--muted);">'+esc(c.phone||'')+'</span></td><td>'+esc(c.service||'—')+'</td><td><span class="badge badge-'+(c.status==='Active'?'active':'inactive')+'">'+c.status+'</span></td><td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editClient('+c.id+')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteClient('+c.id+')">Del</button></td></tr>';
+  }).join('');
+}
+function openClientModal(){ document.getElementById('client-edit-id').value=''; document.getElementById('client-modal-title').textContent='Add Client'; ['c-name','c-pan','c-gst','c-contact','c-phone','c-email','c-address'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('c-fee').value=''; document.getElementById('c-status').value='Active'; document.getElementById('modal-client').classList.add('open'); }
+function editClient(id){ var c=DB.clients.find(function(x){return x.id===id;}); if(!c)return; document.getElementById('client-edit-id').value=id; document.getElementById('client-modal-title').textContent='Edit Client'; document.getElementById('c-name').value=c.name; document.getElementById('c-type').value=c.type; document.getElementById('c-pan').value=c.pan||''; document.getElementById('c-gst').value=c.gstin||''; document.getElementById('c-contact').value=c.contact||''; document.getElementById('c-phone').value=c.phone||''; document.getElementById('c-email').value=c.email||''; document.getElementById('c-service').value=c.service; document.getElementById('c-fee').value=c.fee||''; document.getElementById('c-status').value=c.status; document.getElementById('c-address').value=c.address||''; document.getElementById('modal-client').classList.add('open'); }
+function saveClient(){ var name=document.getElementById('c-name').value.trim(); if(!name){alert('Client name required.');return;} var eid=document.getElementById('client-edit-id').value; var cl={name:name,type:document.getElementById('c-type').value,pan:document.getElementById('c-pan').value.toUpperCase(),gstin:document.getElementById('c-gst').value,contact:document.getElementById('c-contact').value,phone:document.getElementById('c-phone').value,email:document.getElementById('c-email').value,service:document.getElementById('c-service').value,fee:document.getElementById('c-fee').value,status:document.getElementById('c-status').value,address:document.getElementById('c-address').value}; if(eid){var idx=DB.clients.findIndex(function(x){return x.id==eid;});if(idx>=0){cl.id=+eid;DB.clients[idx]=cl;logActivity('Updated client: '+name);}}else{cl.id=DB.nextId.client++;DB.clients.push(cl);logActivity('Added client: '+name);} save();closeModal('modal-client');renderClients();renderDashboard();toast('Client saved!','success'); }
+function deleteClient(id){ if(!confirm('Delete this client?'))return; var c=DB.clients.find(function(x){return x.id===id;}); DB.clients=DB.clients.filter(function(x){return x.id!==id;}); logActivity('Deleted client: '+(c?c.name:'')); save();renderClients();renderDashboard();toast('Client deleted.'); }
+
+// ── DEADLINES ──
+function renderDeadlines(){
+  var data=(DB.deadlines||[]).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+  var el=document.getElementById('deadlines-list');
+  if(!data.length){ el.innerHTML='<div class="empty-state"><div class="icon">📅</div><p>No custom deadlines added yet.</p></div>'; return; }
+  el.innerHTML=data.map(function(d){
+    var dt2=new Date(d.date); var days=daysUntil(d.date);
+    return '<div class="deadline-item"><div class="deadline-date" style="background:'+(days<0?'var(--red)':days<=7?'var(--orange)':'var(--navy)')+'"><div class="dd">'+dt2.getDate()+'</div><div class="mm">'+dt2.toLocaleString('default',{month:'short'})+'</div></div>'+
+    '<div class="deadline-info"><div class="deadline-title">'+esc(d.title)+'</div><div class="deadline-sub">'+esc(d.category)+(d.client?' · '+esc(d.client):'')+(d.assignee?' · '+esc(d.assignee):'')+'</div>'+(d.notes?'<div style="font-size:11px;color:var(--muted);margin-top:2px;">'+esc(d.notes)+'</div>':'')+'</div>'+
+    '<span class="deadline-days days-'+daysClass(days)+'">'+daysLabel(days)+'</span>'+
+    '<div class="td-actions" style="margin-left:10px;"><button class="btn btn-sm btn-danger" onclick="deleteDeadline('+d.id+')">Del</button></div></div>';
+  }).join('');
+}
+function openDeadlineModal(){ populateDropdowns(); document.getElementById('dl-edit-id').value=''; ['dl-title','dl-notes'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('dl-date').value=today(); document.getElementById('modal-deadline').classList.add('open'); }
+function saveDeadline(){ var title=document.getElementById('dl-title').value.trim(); var date=document.getElementById('dl-date').value; if(!title||!date){alert('Title and date required.');return;} var d={id:DB.nextId.deadline++,title:title,date:date,client:document.getElementById('dl-client').value,category:document.getElementById('dl-cat').value,assignee:document.getElementById('dl-assignee').value,notes:document.getElementById('dl-notes').value}; DB.deadlines.push(d); logActivity('Added deadline: '+title); save();closeModal('modal-deadline');renderDeadlines();renderDashboard();updateBadges();toast('Deadline saved!','success'); }
+function deleteDeadline(id){ if(!confirm('Delete this deadline?'))return; DB.deadlines=DB.deadlines.filter(function(x){return x.id!==id;}); save();renderDeadlines();renderDashboard();updateBadges();toast('Deadline deleted.'); }
+
+// ── BILLING ──
+function renderBilling(){
+  var data=DB.billing||[];
+  var total=data.reduce(function(s,b){return s+(+b.amount||0);},0);
+  var paid=data.filter(function(b){return b.status==='Paid';}).reduce(function(s,b){return s+(+b.amount||0);},0);
+  document.getElementById('b-billed').textContent='₹'+total.toLocaleString('en-IN');
+  document.getElementById('b-collected').textContent='₹'+paid.toLocaleString('en-IN');
+  document.getElementById('b-outstanding').textContent='₹'+(total-paid).toLocaleString('en-IN');
+  document.getElementById('b-count').textContent=data.length;
+  var tbody=document.getElementById('billing-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">💰</div><p>No invoices raised yet.</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.sort(function(a,b){return new Date(b.date)-new Date(a.date);}).map(function(b,i){
+    return '<tr><td><strong>INV-'+String(b.id).padStart(4,'0')+'</strong></td><td>'+esc(b.client)+'</td><td>'+esc(b.service)+'</td><td style="font-weight:700;">₹'+Number(b.amount).toLocaleString('en-IN')+'</td><td>'+fmtDate(b.date)+'</td><td><span class="badge badge-'+(b.status==='Paid'?'done':b.status==='Pending'?'todo':'progress')+'">'+b.status+'</span></td><td class="td-actions"><button class="btn btn-sm btn-outline" onclick="markPaid('+b.id+')">Mark Paid</button><button class="btn btn-sm btn-danger" onclick="deleteBill('+b.id+')">Del</button></td></tr>';
+  }).join('');
+}
+function openBillingModal(){ populateDropdowns(); document.getElementById('bill-edit-id').value=''; document.getElementById('billing-modal-title').textContent='Raise Invoice'; document.getElementById('bill-amount').value=''; document.getElementById('bill-notes').value=''; document.getElementById('bill-date').value=today(); document.getElementById('bill-due').value=''; document.getElementById('bill-status').value='Pending'; document.getElementById('modal-billing').classList.add('open'); }
+function saveBilling(){ var client=document.getElementById('bill-client').value; var amt=document.getElementById('bill-amount').value; if(!client||!amt){alert('Client and amount required.');return;} var b={id:DB.nextId.billing++,client:client,service:document.getElementById('bill-service').value,amount:amt,date:document.getElementById('bill-date').value,due:document.getElementById('bill-due').value,status:document.getElementById('bill-status').value,notes:document.getElementById('bill-notes').value}; DB.billing.push(b); logActivity('Raised invoice ₹'+amt+' for '+client); save();closeModal('modal-billing');renderBilling();renderDashboard();toast('Invoice saved!','success'); }
+function markPaid(id){ var b=DB.billing.find(function(x){return x.id===id;}); if(b){b.status='Paid';logActivity('Invoice INV-'+String(id).padStart(4,'0')+' marked as paid');save();renderBilling();renderDashboard();toast('Marked as paid!','success');} }
+function deleteBill(id){ if(!confirm('Delete this invoice?'))return; DB.billing=DB.billing.filter(function(x){return x.id!==id;}); save();renderBilling();renderDashboard();toast('Invoice deleted.'); }
+
+// ── DOCUMENTS ──
+function renderDocs(){
+  var data=DB.documents||[];
+  var tbody=document.getElementById('docs-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="icon">📁</div><p>No documents logged yet.</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.sort(function(a,b){return new Date(b.date)-new Date(a.date);}).map(function(d){
+    return '<tr><td><strong>'+esc(d.name)+'</strong>'+(d.notes?'<br><span style="font-size:11px;color:var(--muted);">'+esc(d.notes)+'</span>':'')+'</td><td>'+esc(d.client||'—')+'</td><td>'+esc(d.type)+'</td><td>'+fmtDate(d.date)+'</td><td><span class="badge badge-'+(d.status==='Filed'||d.status==='Completed'?'done':d.status==='Drafted'?'progress':'todo')+'">'+d.status+'</span></td><td class="td-actions"><button class="btn btn-sm btn-danger" onclick="deleteDoc('+d.id+')">Del</button></td></tr>';
+  }).join('');
+}
+function openDocModal(){ populateDropdowns(); document.getElementById('doc-edit-id').value=''; ['doc-name','doc-notes'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('doc-date').value=today(); document.getElementById('modal-doc').classList.add('open'); }
+function saveDoc(){ var name=document.getElementById('doc-name').value.trim(); if(!name){alert('Document name required.');return;} var d={id:DB.nextId.doc++,name:name,client:document.getElementById('doc-client').value,type:document.getElementById('doc-type').value,date:document.getElementById('doc-date').value,status:document.getElementById('doc-status').value,notes:document.getElementById('doc-notes').value}; DB.documents.push(d); logActivity('Logged document: '+name); save();closeModal('modal-doc');renderDocs();toast('Document saved!','success'); }
+function deleteDoc(id){ if(!confirm('Delete?'))return; DB.documents=DB.documents.filter(function(x){return x.id!==id;}); save();renderDocs();toast('Deleted.'); }
+
+// ── TEAM ──
+function renderTeam(){
+  var data=DB.team||[];
+  var tbody=document.getElementById('team-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">🧑‍💼</div><p>No team members.</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.map(function(m){
+    var activeTasks=(DB.tasks||[]).filter(function(t){return t.assignee===m.name&&t.status!=='Done';}).length;
+    return '<tr><td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar-sm a1">'+initials(m.name)+'</div><strong>'+esc(m.name)+'</strong></div></td><td>'+esc(m.role)+'</td><td>'+esc(m.email||'—')+'</td><td>'+esc(m.spec||'—')+'</td><td><span style="font-weight:700;color:'+(activeTasks>3?'var(--red)':'var(--green)')+'">'+activeTasks+'</span></td><td><span class="badge badge-active">Active</span></td><td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editTeam('+m.id+')">Edit</button></td></tr>';
+  }).join('');
+}
+function openTeamModal(){ document.getElementById('tm-edit-id').value=''; document.getElementById('team-modal-title').textContent='Add Team Member'; ['tm-name','tm-email','tm-phone','tm-spec','tm-pass'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('modal-team').classList.add('open'); }
+function editTeam(id){ var m=DB.team.find(function(x){return x.id===id;}); if(!m)return; document.getElementById('tm-edit-id').value=id; document.getElementById('team-modal-title').textContent='Edit Member'; document.getElementById('tm-name').value=m.name; document.getElementById('tm-role').value=m.role; document.getElementById('tm-email').value=m.email||''; document.getElementById('tm-phone').value=m.phone||''; document.getElementById('tm-spec').value=m.spec||''; document.getElementById('modal-team').classList.add('open'); }
+function saveTeam(){ var name=document.getElementById('tm-name').value.trim(); if(!name){alert('Name required.');return;} var eid=document.getElementById('tm-edit-id').value; var m={name:name,role:document.getElementById('tm-role').value,email:document.getElementById('tm-email').value,phone:document.getElementById('tm-phone').value,spec:document.getElementById('tm-spec').value,active:true}; if(document.getElementById('tm-pass').value) m.pass=document.getElementById('tm-pass').value; if(eid){var idx=DB.team.findIndex(function(x){return x.id==eid;});if(idx>=0){m.id=+eid;if(!m.pass)m.pass=DB.team[idx].pass;DB.team[idx]=m;logActivity('Updated team member: '+name);}}else{m.id=DB.nextId.team++;DB.team.push(m);logActivity('Added team member: '+name);} save();closeModal('modal-team');renderTeam();toast('Team member saved!','success'); }
+
+// ── SETTINGS ──
+function saveProfile(){ var n=document.getElementById('pref-name').value.trim(); if(!n){alert('Name required.');return;} if(DB.currentUser){DB.currentUser.name=n;document.getElementById('sidebar-name').textContent=n;document.getElementById('profile-name-lg').textContent=n;} var pass=document.getElementById('pref-pass').value; if(pass&&DB.currentUser){ DB.currentUser.pass=pass; var tm=DB.team.find(function(t){return t.email===DB.currentUser.email;}); if(tm){tm.pass=pass;tm.name=n;} } logActivity('Updated profile'); save(); toast('Profile updated!','success'); }
+function exportData(){ var blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='psrb_os_backup_'+today()+'.json'; a.click(); }
+function importData(){ var input=document.createElement('input'); input.type='file'; input.accept='.json'; input.onchange=function(e){ var f=e.target.files[0]; if(!f)return; var r=new FileReader(); r.onload=function(ev){try{var d=JSON.parse(ev.target.result);Object.assign(DB,d);save();refreshAll();toast('Data imported!','success');}catch(err){alert('Invalid file.');}};r.readAsText(f); }; input.click(); }
+function clearData(){ if(!confirm('This will DELETE all data. Are you sure?'))return; if(!confirm('Really delete everything?'))return; localStorage.removeItem('psrb_os_v2'); location.reload(); }
+
+// ── HELPERS ──
+function populateDropdowns(){
+  var clients=DB.clients||[]; var team=DB.team||[];
+  var cOpts='<option value="">— None —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
+  var tOpts='<option value="">— Unassigned —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>';}).join('');
+  ['t-client','dl-client','doc-client','bill-client'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=id==='bill-client'?'<option value="">— Select —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join(''):cOpts;});
+  ['t-assignee','dl-assignee'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=tOpts;});
+}
+function openQuickAdd(){ document.getElementById('modal-quickadd').classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function statusClass(s){ return {Todo:'todo','In Progress':'progress','In Review':'review',Done:'done'}[s]||'todo'; }
+function daysClass(d){ return d<0?'over':d<=7?'warn':'ok'; }
+function daysLabel(d){ if(d<0)return Math.abs(d)+'d overdue'; if(d===0)return 'Today!'; if(d===1)return 'Tomorrow'; return d+'d left'; }
+function fmtDate(s){ if(!s)return '—'; var d=new Date(s); return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); }
+function initials(name){ if(!name)return '?'; return name.split(' ').map(function(n){return n[0];}).join('').substring(0,2).toUpperCase(); }
+function esc(s){ if(!s&&s!==0)return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function logActivity(text){ if(!DB.activity)DB.activity=[]; var user=DB.currentUser?DB.currentUser.name:'System'; DB.activity.push({text:user+': '+text,ts:new Date().toISOString()}); if(DB.activity.length>100)DB.activity=DB.activity.slice(-100); }
+function toast(msg,type){ var el=document.getElementById('toast'); el.textContent=msg; el.className='toast '+(type||''); el.classList.add('show'); setTimeout(function(){el.classList.remove('show');},2500); }
+function globalSearch(q){ if(!q||q.length<2)return; /* simple highlight across visible view */ }
+
+// Click outside modal to close
+document.querySelectorAll('.modal-overlay').forEach(function(el){
+  el.addEventListener('click',function(e){ if(e.target===el) el.classList.remove('open'); });
+});
+
+// ── INIT ──
+load();
+// Auto-login if session stored
+if(DB.currentUser){
+  var u=DB.currentUser;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').classList.add('active');
+  var ini=u.initials||(u.name?u.name.split(' ').map(function(n){return n[0];}).join('').substring(0,2).toUpperCase():'??');
+  document.getElementById('sidebar-avatar').textContent=ini;
+  document.getElementById('sidebar-name').textContent=u.name||'';
+  document.getElementById('sidebar-role').textContent=u.role||'';
+  document.getElementById('profile-avatar-lg').textContent=ini;
+  document.getElementById('profile-name-lg').textContent=u.name||'';
+  document.getElementById('profile-role-lg').textContent=u.role||'';
+  document.getElementById('pref-name').value=u.name||'';
+  document.getElementById('pref-email').value=u.email||'';
+  document.getElementById('topbar-date').textContent='— '+new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  refreshAll();
+}
+</script>
+</body>
+</html>
