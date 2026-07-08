@@ -235,6 +235,7 @@ tr:hover td{background:var(--cream);}
     <button class="nav-item" onclick="showView('clients',this)"><span class="icon">👥</span> Clients</button>
     <button class="nav-item" onclick="showView('deadlines',this)"><span class="icon">📅</span> Deadlines <span class="nav-badge" id="overdue-badge" style="display:none">!</span></button>
     <button class="nav-item" onclick="showView('workchart',this)"><span class="icon">📊</span> Work Chart</button>
+    <button class="nav-item" onclick="showView('recurring',this)"><span class="icon">🔁</span> Recurring Setup</button>
     <div class="sidebar-section">Finance</div>
     <button class="nav-item" onclick="showView('billing',this)"><span class="icon">💰</span> Billing & Fees</button>
     <button class="nav-item" onclick="showView('documents',this)"><span class="icon">📁</span> Documents</button>
@@ -324,6 +325,35 @@ tr:hover td{background:var(--cream);}
             <table>
               <thead><tr><th>Task</th><th>Client</th><th>Assigned To</th><th>Priority</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="tasks-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECURRING SETUP -->
+      <div class="view" id="view-recurring">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <div class="card-title">🔁 Recurring Compliance Tasks</div>
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-outline btn-sm" onclick="addCustomRecurring()">+ Custom</button>
+              <button class="btn btn-primary" onclick="saveRecurringAssignments()">Save Assignments</button>
+            </div>
+          </div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Assign a staff member to each recurring compliance task <strong>once</strong>. Tasks will auto-appear in the To-Do list every month/quarter/year on schedule.</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Compliance Task</th><th>Category</th><th>Frequency</th><th>Due Rule</th><th>Assign To (One-time)</th><th>Active</th></tr></thead>
+              <tbody id="recurring-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">📋 Auto-Generated Tasks This Period</div><button class="btn btn-sm btn-gold" onclick="runRecurringNow()">▶ Run Now</button></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Task</th><th>Category</th><th>Assigned To</th><th>Due Date</th><th>Status</th></tr></thead>
+              <tbody id="recurring-generated-tbody"></tbody>
             </table>
           </div>
         </div>
@@ -483,6 +513,16 @@ tr:hover td{background:var(--cream);}
               <div class="field"><label>ICAI Registration</label><input type="text" value="CA Firm" style="background:var(--cream)" readonly></div>
               <div class="field"><label>Corporate Office</label><input type="text" value="Satya Vihar, Rasulgarh, Bhubaneswar" readonly style="background:var(--cream)"></div>
               <div class="field"><label>Branch Office</label><input type="text" value="Buddha Vihar, Bhadrak, Odisha" readonly style="background:var(--cream)"></div>
+            </div>
+            <div class="card" style="margin-bottom:20px;">
+              <div class="card-header"><div class="card-title">📧 Auto Email Setup (EmailJS)</div></div>
+              <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">When a task is marked <strong>Done</strong>, a completion email is sent automatically to the client from your firm Gmail. <a href="https://www.emailjs.com/" target="_blank" style="color:var(--blue);">Get free EmailJS keys →</a></p>
+              <div class="field"><label>EmailJS Service ID</label><input type="text" id="ejs-service" placeholder="service_xxxxxxx"></div>
+              <div class="field"><label>EmailJS Template ID</label><input type="text" id="ejs-template" placeholder="template_xxxxxxx"></div>
+              <div class="field"><label>EmailJS Public Key</label><input type="text" id="ejs-pubkey" placeholder="your_public_key"></div>
+              <div class="field"><label>Sender Name (shown to client)</label><input type="text" id="ejs-sender" placeholder="PSRB &amp; Associates LLP" value="PSRB &amp; Associates LLP"></div>
+              <button class="btn btn-primary" onclick="saveEmailConfig()">Save Email Config</button>
+              <button class="btn btn-outline" style="margin-left:10px;" onclick="testEmail()">Send Test Email</button>
             </div>
             <div class="card">
               <div class="card-header"><div class="card-title">🗑️ Data Management</div></div>
@@ -690,6 +730,9 @@ tr:hover td{background:var(--cream);}
 
 <div class="toast" id="toast"></div>
 
+<!-- EmailJS -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -817,6 +860,8 @@ function doLogin(){
   document.getElementById('pref-email').value=u.email;
   document.getElementById('topbar-date').textContent='— '+new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   logActivity('Signed in');
+  loadEmailConfigUI();
+  generateRecurringTasks();
   refreshAll();
 }
 function doLogout(){
@@ -838,7 +883,7 @@ function showView(id, btn){
   document.getElementById('view-'+id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   if(btn) btn.classList.add('active');
-  var titles={dashboard:'Dashboard',tasks:'Tasks',clients:'Clients',deadlines:'Deadlines',billing:'Billing & Fees',documents:'Documents',team:'Team',settings:'Settings'};
+  var titles={dashboard:'Dashboard',tasks:'Tasks',clients:'Clients',deadlines:'Deadlines',billing:'Billing & Fees',documents:'Documents',team:'Team',settings:'Settings',workchart:'Work Chart',recurring:'Recurring Setup'};
   document.getElementById('topbar-title').textContent=titles[id]||id;
   if(id==='tasks') renderTasks();
   if(id==='clients') renderClients();
@@ -848,6 +893,8 @@ function showView(id, btn){
   if(id==='team') renderTeam();
   if(id==='dashboard') renderDashboard();
   if(id==='workchart') renderWorkChart();
+  if(id==='recurring') renderRecurring();
+  if(id==='settings'){ loadEmailConfigUI(); }
 }
 
 // ── REFRESH ALL ──
@@ -939,7 +986,7 @@ function renderTasks(){
 }
 function openTaskModal(){ populateDropdowns(); document.getElementById('task-edit-id').value=''; document.getElementById('task-modal-title').textContent='New Task'; ['t-title','t-notes'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('t-due').value=today(); document.getElementById('modal-task').classList.add('open'); }
 function editTask(id){ populateDropdowns(); var t=DB.tasks.find(function(x){return x.id===id;}); if(!t)return; document.getElementById('task-edit-id').value=id; document.getElementById('task-modal-title').textContent='Edit Task'; document.getElementById('t-title').value=t.title; document.getElementById('t-client').value=t.client||''; document.getElementById('t-assignee').value=t.assignee||''; document.getElementById('t-priority').value=t.priority; document.getElementById('t-status').value=t.status; document.getElementById('t-due').value=t.due; document.getElementById('t-category').value=t.category; document.getElementById('t-notes').value=t.notes||''; document.getElementById('modal-task').classList.add('open'); }
-function saveTask(){ var title=document.getElementById('t-title').value.trim(); if(!title){alert('Task title required.');return;} var eid=document.getElementById('task-edit-id').value; var task={title:title,client:document.getElementById('t-client').value,assignee:document.getElementById('t-assignee').value,priority:document.getElementById('t-priority').value,status:document.getElementById('t-status').value,due:document.getElementById('t-due').value,category:document.getElementById('t-category').value,notes:document.getElementById('t-notes').value}; if(eid){var idx=DB.tasks.findIndex(function(x){return x.id==eid;});if(idx>=0){task.id=+eid;task.created=DB.tasks[idx].created;DB.tasks[idx]=task;logActivity('Updated task: '+title);}}else{task.id=DB.nextId.task++;task.created=new Date().toISOString();DB.tasks.push(task);logActivity('Created task: '+title);} save();closeModal('modal-task');renderTasks();renderDashboard();toast('Task saved!','success'); }
+function saveTask(){ var title=document.getElementById('t-title').value.trim(); if(!title){alert('Task title required.');return;} var eid=document.getElementById('task-edit-id').value; var task={title:title,client:document.getElementById('t-client').value,assignee:document.getElementById('t-assignee').value,priority:document.getElementById('t-priority').value,status:document.getElementById('t-status').value,due:document.getElementById('t-due').value,category:document.getElementById('t-category').value,notes:document.getElementById('t-notes').value}; if(eid){var idx=DB.tasks.findIndex(function(x){return x.id==eid;});if(idx>=0){var prevStatus=DB.tasks[idx].status;task.id=+eid;task.created=DB.tasks[idx].created;task.isRecurring=DB.tasks[idx].isRecurring;task.templateId=DB.tasks[idx].templateId;DB.tasks[idx]=task;logActivity('Updated task: '+title);if(task.status==='Done'&&prevStatus!=='Done')sendCompletionEmail(task);}}else{task.id=DB.nextId.task++;task.created=new Date().toISOString();DB.tasks.push(task);logActivity('Created task: '+title);} save();closeModal('modal-task');renderTasks();renderDashboard();toast('Task saved!','success'); }
 function deleteTask(id){ if(!confirm('Delete this task?'))return; var t=DB.tasks.find(function(x){return x.id===id;}); DB.tasks=DB.tasks.filter(function(x){return x.id!==id;}); logActivity('Deleted task: '+(t?t.title:'')); save();renderTasks();renderDashboard();toast('Task deleted.'); }
 
 // ── CLIENTS ──
@@ -1045,6 +1092,252 @@ function esc(s){ if(!s&&s!==0)return ''; return String(s).replace(/&/g,'&amp;').
 function logActivity(text){ if(!DB.activity)DB.activity=[]; var user=DB.currentUser?DB.currentUser.name:'System'; DB.activity.push({text:user+': '+text,ts:new Date().toISOString()}); if(DB.activity.length>100)DB.activity=DB.activity.slice(-100); }
 function toast(msg,type){ var el=document.getElementById('toast'); el.textContent=msg; el.className='toast '+(type||''); el.classList.add('show'); setTimeout(function(){el.classList.remove('show');},2500); }
 function globalSearch(q){ if(!q||q.length<2)return; /* simple highlight across visible view */ }
+
+// ── RECURRING TASKS ──
+var DEFAULT_RECURRING = [
+  {id:'r1',name:'GSTR-1 Monthly Filing',category:'GST',frequency:'monthly',dueDay:11,dueOffset:1,assignee:'',active:true,generated:{}},
+  {id:'r2',name:'GSTR-3B Monthly Filing',category:'GST',frequency:'monthly',dueDay:20,dueOffset:1,assignee:'',active:true,generated:{}},
+  {id:'r3',name:'TDS Challan Payment (Sec 200)',category:'TDS',frequency:'monthly',dueDay:7,dueOffset:1,assignee:'',active:true,generated:{}},
+  {id:'r4',name:'PF ECR Monthly',category:'PF/ESI',frequency:'monthly',dueDay:15,dueOffset:1,assignee:'',active:true,generated:{}},
+  {id:'r5',name:'ESI Contribution Monthly',category:'PF/ESI',frequency:'monthly',dueDay:15,dueOffset:1,assignee:'',active:true,generated:{}},
+  {id:'r6',name:'TDS Return Q1 (Apr–Jun)',category:'TDS',frequency:'quarterly',qMonth:0,fixedDate:'07-31',assignee:'',active:true,generated:{}},
+  {id:'r7',name:'TDS Return Q2 (Jul–Sep)',category:'TDS',frequency:'quarterly',qMonth:3,fixedDate:'10-31',assignee:'',active:true,generated:{}},
+  {id:'r8',name:'TDS Return Q3 (Oct–Dec)',category:'TDS',frequency:'quarterly',qMonth:6,fixedDate:'01-31',assignee:'',active:true,generated:{}},
+  {id:'r9',name:'TDS Return Q4 (Jan–Mar)',category:'TDS',frequency:'quarterly',qMonth:9,fixedDate:'05-31',assignee:'',active:true,generated:{}},
+  {id:'r10',name:'GSTR-9 Annual Return',category:'GST',frequency:'annual',fixedDate:'12-31',assignee:'',active:true,generated:{}},
+  {id:'r11',name:'Income Tax Return (Non-Audit)',category:'Income Tax',frequency:'annual',fixedDate:'07-31',assignee:'',active:true,generated:{}},
+  {id:'r12',name:'Income Tax Return (Audit Cases)',category:'Income Tax',frequency:'annual',fixedDate:'10-31',assignee:'',active:true,generated:{}},
+  {id:'r13',name:'ROC Annual Filing — AOC-4',category:'ROC/MCA',frequency:'annual',fixedDate:'10-29',assignee:'',active:true,generated:{}},
+  {id:'r14',name:'ROC Annual Filing — MGT-7',category:'ROC/MCA',frequency:'annual',fixedDate:'11-28',assignee:'',active:true,generated:{}}
+];
+
+function initRecurring(){
+  if(!DB.recurringTemplates || DB.recurringTemplates.length===0){
+    DB.recurringTemplates = JSON.parse(JSON.stringify(DEFAULT_RECURRING));
+  } else {
+    // Merge in any new defaults not yet in DB
+    DEFAULT_RECURRING.forEach(function(def){
+      if(!DB.recurringTemplates.find(function(r){return r.id===def.id;})){
+        DB.recurringTemplates.push(JSON.parse(JSON.stringify(def)));
+      }
+    });
+  }
+}
+
+function getRecurringPeriod(tmpl, now){
+  if(tmpl.frequency==='monthly') return now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  if(tmpl.frequency==='quarterly'){
+    // Determine which quarter this template belongs to based on qMonth
+    var qm = tmpl.qMonth; // 0=Jan quarter start, 3=Apr, 6=Jul, 9=Oct
+    var yr = now.getFullYear();
+    // Q1 (Apr-Jun) → period key = "FY-Q1"
+    var qNames={0:'Q3',3:'Q4',6:'Q1',9:'Q2'}; // Indian FY
+    return yr+'-'+( qNames[qm]||'Qx' );
+  }
+  if(tmpl.frequency==='annual') return String(now.getFullYear());
+  return '';
+}
+
+function getRecurringDueDate(tmpl, now){
+  var yr=now.getFullYear(), mo=now.getMonth();
+  if(tmpl.frequency==='monthly'){
+    var dueMo = mo + (tmpl.dueOffset||1);
+    var dueYr = yr;
+    if(dueMo>11){dueMo-=12;dueYr++;}
+    return dueYr+'-'+String(dueMo+1).padStart(2,'0')+'-'+String(tmpl.dueDay).padStart(2,'0');
+  }
+  if(tmpl.frequency==='quarterly'||tmpl.frequency==='annual'){
+    // fixedDate = "MM-DD"
+    var parts=(tmpl.fixedDate||'12-31').split('-');
+    var dueYr=yr;
+    // If the fixed month has already passed this year for annual, use next year
+    if(tmpl.frequency==='annual'){
+      var dueM=parseInt(parts[0])-1;
+      var dueD=parseInt(parts[1]);
+      if(mo>dueM||(mo===dueM&&now.getDate()>dueD)) dueYr=yr+1;
+    }
+    return dueYr+'-'+parts[0]+'-'+parts[1];
+  }
+  return today();
+}
+
+function generateRecurringTasks(){
+  initRecurring();
+  var now=new Date();
+  var generated=[];
+  DB.recurringTemplates.forEach(function(tmpl){
+    if(!tmpl.active || !tmpl.assignee) return;
+    var period=getRecurringPeriod(tmpl,now);
+    if(!tmpl.generated) tmpl.generated={};
+    if(tmpl.generated[period]) return; // already generated
+    var dueDate=getRecurringDueDate(tmpl,now);
+    var task={
+      id:DB.nextId.task++,
+      title:tmpl.name+' — '+formatPeriodLabel(tmpl,now),
+      assignee:tmpl.assignee,
+      category:tmpl.category,
+      priority:'High',
+      status:'Todo',
+      due:dueDate,
+      client:'',
+      notes:'Auto-generated recurring task',
+      isRecurring:true,
+      templateId:tmpl.id,
+      created:new Date().toISOString()
+    };
+    DB.tasks.push(task);
+    tmpl.generated[period]=task.id;
+    generated.push(task.title);
+    logActivity('Auto-created recurring task: '+task.title+' → assigned to '+tmpl.assignee);
+  });
+  if(generated.length>0){ save(); updateBadges(); }
+  return generated.length;
+}
+
+function formatPeriodLabel(tmpl,now){
+  if(tmpl.frequency==='monthly'){
+    return now.toLocaleString('default',{month:'long'})+' '+now.getFullYear();
+  }
+  if(tmpl.frequency==='quarterly') return getRecurringPeriod(tmpl,now)+' '+now.getFullYear();
+  if(tmpl.frequency==='annual') return 'FY '+now.getFullYear()+'-'+(now.getFullYear()+1);
+  return '';
+}
+
+function renderRecurring(){
+  initRecurring();
+  var team=DB.team||[];
+  var memberOpts='<option value="">— Unassigned —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>';}).join('');
+  var freqLabel={monthly:'Monthly',quarterly:'Quarterly',annual:'Annual'};
+  var tbody=document.getElementById('recurring-tbody');
+  tbody.innerHTML=DB.recurringTemplates.map(function(r){
+    var dueRule=r.frequency==='monthly'?'Due '+r.dueDay+'th of next month':(r.fixedDate?r.fixedDate:'—');
+    var sel='<select onchange="DB.recurringTemplates.find(function(x){return x.id===\''+r.id+'\';}).assignee=this.value" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;width:100%;">'+memberOpts+'</select>';
+    // Set selected value
+    var rows='<tr data-rid="'+r.id+'">'+
+      '<td><strong>'+esc(r.name)+'</strong>'+(r.isCustom?'<span style="font-size:10px;color:var(--gold);margin-left:6px;">CUSTOM</span>':'')+'</td>'+
+      '<td><span class="badge badge-todo" style="font-size:10px;">'+esc(r.category)+'</span></td>'+
+      '<td>'+freqLabel[r.frequency]+'</td>'+
+      '<td style="font-size:12px;color:var(--muted);">'+dueRule+'</td>'+
+      '<td style="min-width:160px;">'+sel+'</td>'+
+      '<td><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" '+(r.active?'checked':'')+ ' onchange="DB.recurringTemplates.find(function(x){return x.id===\''+r.id+'\';}).active=this.checked"> Active</label></td>'+
+    '</tr>';
+    return rows;
+  }).join('');
+  // Set selected values after render
+  DB.recurringTemplates.forEach(function(r){
+    var row=tbody.querySelector('[data-rid="'+r.id+'"]');
+    if(row&&r.assignee){ var sel=row.querySelector('select'); if(sel)sel.value=r.assignee; }
+  });
+
+  // Generated tasks list
+  var allRecurring=(DB.tasks||[]).filter(function(t){return t.isRecurring;});
+  var gtbody=document.getElementById('recurring-generated-tbody');
+  if(!allRecurring.length){
+    gtbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="icon">🔁</div><p>No recurring tasks generated yet. Assign staff above and click "Run Now".</p></div></td></tr>';
+  } else {
+    gtbody.innerHTML=allRecurring.sort(function(a,b){return new Date(b.created)-new Date(a.created);}).map(function(t){
+      return '<tr><td><strong>'+esc(t.title)+'</strong></td><td><span class="badge badge-todo" style="font-size:10px;">'+esc(t.category)+'</span></td><td>'+esc(t.assignee||'—')+'</td><td>'+fmtDate(t.due)+'</td><td><span class="badge badge-'+statusClass(t.status)+'">'+t.status+'</span></td></tr>';
+    }).join('');
+  }
+}
+
+function saveRecurringAssignments(){
+  save();
+  var n=generateRecurringTasks();
+  renderRecurring();
+  renderTasks();
+  renderDashboard();
+  updateBadges();
+  toast('Assignments saved! '+n+' new task'+(n!==1?'s':'')+' generated.','success');
+}
+
+function runRecurringNow(){
+  var n=generateRecurringTasks();
+  renderRecurring();
+  renderTasks();
+  renderDashboard();
+  updateBadges();
+  toast(n>0?n+' recurring task'+(n!==1?'s':'')+' generated!':'All tasks already generated for this period.', n>0?'success':'');
+}
+
+function addCustomRecurring(){
+  var name=prompt('Enter recurring task name:');
+  if(!name) return;
+  var freq=prompt('Frequency? (monthly / quarterly / annual)','monthly');
+  if(!freq) return;
+  var r={id:'rc'+Date.now(),name:name,category:'Other',frequency:freq,dueDay:20,dueOffset:1,fixedDate:'03-31',assignee:'',active:true,generated:{},isCustom:true};
+  initRecurring();
+  DB.recurringTemplates.push(r);
+  save();
+  renderRecurring();
+  toast('Custom recurring task added!','success');
+}
+
+// ── AUTO EMAIL (EmailJS) ──
+function saveEmailConfig(){
+  DB.emailConfig={
+    serviceId:document.getElementById('ejs-service').value.trim(),
+    templateId:document.getElementById('ejs-template').value.trim(),
+    pubKey:document.getElementById('ejs-pubkey').value.trim(),
+    senderName:document.getElementById('ejs-sender').value.trim()||'PSRB & Associates LLP'
+  };
+  if(DB.emailConfig.pubKey) emailjs.init(DB.emailConfig.pubKey);
+  save();
+  toast('Email config saved!','success');
+}
+
+function loadEmailConfigUI(){
+  var ec=DB.emailConfig||{};
+  if(document.getElementById('ejs-service')) document.getElementById('ejs-service').value=ec.serviceId||'';
+  if(document.getElementById('ejs-template')) document.getElementById('ejs-template').value=ec.templateId||'';
+  if(document.getElementById('ejs-pubkey')) document.getElementById('ejs-pubkey').value=ec.pubKey||'';
+  if(document.getElementById('ejs-sender')) document.getElementById('ejs-sender').value=ec.senderName||'PSRB & Associates LLP';
+  if(ec.pubKey) emailjs.init(ec.pubKey);
+}
+
+function sendCompletionEmail(task){
+  var ec=DB.emailConfig||{};
+  if(!ec.serviceId||!ec.templateId||!ec.pubKey){ return; }
+  var client=DB.clients.find(function(c){return c.name===task.client;});
+  var toEmail=client&&client.email?client.email:'';
+  if(!toEmail){ return; }
+  var params={
+    to_email: toEmail,
+    to_name: client.contact||client.name,
+    client_name: client.name,
+    task_title: task.title,
+    category: task.category||'',
+    due_date: fmtDate(task.due),
+    assignee: task.assignee||'Our Team',
+    firm_name: ec.senderName||'PSRB & Associates LLP',
+    firm_email: 'ca.psrb.llp@gmail.com',
+    firm_phone: '+91-9437634787'
+  };
+  emailjs.send(ec.serviceId, ec.templateId, params)
+    .then(function(){ logActivity('Completion email sent to '+toEmail+' for: '+task.title); save(); toast('✉️ Completion email sent to '+client.name+'!','success'); })
+    .catch(function(e){ console.error('EmailJS error',e); toast('Email config error — check Settings.','error'); });
+}
+
+function testEmail(){
+  var ec=DB.emailConfig||{};
+  if(!ec.serviceId||!ec.templateId||!ec.pubKey){ alert('Please fill in all EmailJS fields and save first.'); return; }
+  emailjs.init(ec.pubKey);
+  var params={
+    to_email: DB.currentUser&&DB.currentUser.email?DB.currentUser.email:'ca.psrb.llp@gmail.com',
+    to_name: 'Test User',
+    client_name: 'Test Client Pvt Ltd',
+    task_title: 'GST Return July 2026 — TEST',
+    category: 'GST',
+    due_date: fmtDate(today()),
+    assignee: DB.currentUser&&DB.currentUser.name?DB.currentUser.name:'PSRB Team',
+    firm_name: ec.senderName||'PSRB & Associates LLP',
+    firm_email: 'ca.psrb.llp@gmail.com',
+    firm_phone: '+91-9437634787'
+  };
+  emailjs.send(ec.serviceId, ec.templateId, params)
+    .then(function(){ toast('✉️ Test email sent successfully!','success'); })
+    .catch(function(e){ toast('Failed: '+e.text,'error'); });
+}
 
 // ── WORK CHART ──
 function renderWorkChart(){
