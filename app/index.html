@@ -514,16 +514,7 @@ tr:hover td{background:var(--cream);}
               <div class="field"><label>Corporate Office</label><input type="text" value="Satya Vihar, Rasulgarh, Bhubaneswar" readonly style="background:var(--cream)"></div>
               <div class="field"><label>Branch Office</label><input type="text" value="Buddha Vihar, Bhadrak, Odisha" readonly style="background:var(--cream)"></div>
             </div>
-            <div class="card" style="margin-bottom:20px;">
-              <div class="card-header"><div class="card-title">📧 Auto Email Setup (EmailJS)</div></div>
-              <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">When a task is marked <strong>Done</strong>, a completion email is sent automatically to the client from your firm Gmail. <a href="https://www.emailjs.com/" target="_blank" style="color:var(--blue);">Get free EmailJS keys →</a></p>
-              <div class="field"><label>EmailJS Service ID</label><input type="text" id="ejs-service" placeholder="service_xxxxxxx"></div>
-              <div class="field"><label>EmailJS Template ID</label><input type="text" id="ejs-template" placeholder="template_xxxxxxx"></div>
-              <div class="field"><label>EmailJS Public Key</label><input type="text" id="ejs-pubkey" placeholder="your_public_key"></div>
-              <div class="field"><label>Sender Name (shown to client)</label><input type="text" id="ejs-sender" placeholder="PSRB &amp; Associates LLP" value="PSRB &amp; Associates LLP"></div>
-              <button class="btn btn-primary" onclick="saveEmailConfig()">Save Email Config</button>
-              <button class="btn btn-outline" style="margin-left:10px;" onclick="testEmail()">Send Test Email</button>
-            </div>
+
             <div class="card">
               <div class="card-header"><div class="card-title">🗑️ Data Management</div></div>
               <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">All data is stored locally in your browser. Export to keep a backup.</p>
@@ -730,8 +721,6 @@ tr:hover td{background:var(--cream);}
 
 <div class="toast" id="toast"></div>
 
-<!-- EmailJS -->
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -751,14 +740,6 @@ firebase.initializeApp(firebaseConfig);
 var fsdb = firebase.firestore();
 var FS_DOC = fsdb.collection('psrb_data').doc('main');
 
-// EmailJS default config
-var EMAILJS_DEFAULTS = {
-  serviceId: 'service_gl9b53q',
-  templateId: 'template_v9c8fii',
-  pubKey: 'nQmxLO_0DnLyoXNgC',
-  senderName: 'PSRB & Associates LLP'
-};
-emailjs.init(EMAILJS_DEFAULTS.pubKey);
 </script>
 
 <script>
@@ -869,7 +850,6 @@ function doLogin(){
   document.getElementById('pref-email').value=u.email;
   document.getElementById('topbar-date').textContent='— '+new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   logActivity('Signed in');
-  loadEmailConfigUI();
   generateRecurringTasks();
   refreshAll();
 }
@@ -903,7 +883,7 @@ function showView(id, btn){
   if(id==='dashboard') renderDashboard();
   if(id==='workchart') renderWorkChart();
   if(id==='recurring') renderRecurring();
-  if(id==='settings'){ loadEmailConfigUI(); }
+  if(id==='settings'){  }
 }
 
 // ── REFRESH ALL ──
@@ -995,7 +975,7 @@ function renderTasks(){
 }
 function openTaskModal(){ populateDropdowns(); document.getElementById('task-edit-id').value=''; document.getElementById('task-modal-title').textContent='New Task'; ['t-title','t-notes'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('t-due').value=today(); document.getElementById('modal-task').classList.add('open'); }
 function editTask(id){ populateDropdowns(); var t=DB.tasks.find(function(x){return x.id===id;}); if(!t)return; document.getElementById('task-edit-id').value=id; document.getElementById('task-modal-title').textContent='Edit Task'; document.getElementById('t-title').value=t.title; document.getElementById('t-client').value=t.client||''; document.getElementById('t-assignee').value=t.assignee||''; document.getElementById('t-priority').value=t.priority; document.getElementById('t-status').value=t.status; document.getElementById('t-due').value=t.due; document.getElementById('t-category').value=t.category; document.getElementById('t-notes').value=t.notes||''; document.getElementById('modal-task').classList.add('open'); }
-function saveTask(){ var title=document.getElementById('t-title').value.trim(); if(!title){alert('Task title required.');return;} var eid=document.getElementById('task-edit-id').value; var task={title:title,client:document.getElementById('t-client').value,assignee:document.getElementById('t-assignee').value,priority:document.getElementById('t-priority').value,status:document.getElementById('t-status').value,due:document.getElementById('t-due').value,category:document.getElementById('t-category').value,notes:document.getElementById('t-notes').value}; if(eid){var idx=DB.tasks.findIndex(function(x){return x.id==eid;});if(idx>=0){var prevStatus=DB.tasks[idx].status;task.id=+eid;task.created=DB.tasks[idx].created;task.isRecurring=DB.tasks[idx].isRecurring;task.templateId=DB.tasks[idx].templateId;DB.tasks[idx]=task;logActivity('Updated task: '+title);if(task.status==='Done'&&prevStatus!=='Done')sendCompletionEmail(task);}}else{task.id=DB.nextId.task++;task.created=new Date().toISOString();DB.tasks.push(task);logActivity('Created task: '+title);} save();closeModal('modal-task');renderTasks();renderDashboard();toast('Task saved!','success'); }
+function saveTask(){ var title=document.getElementById('t-title').value.trim(); if(!title){alert('Task title required.');return;} var eid=document.getElementById('task-edit-id').value; var task={title:title,client:document.getElementById('t-client').value,assignee:document.getElementById('t-assignee').value,priority:document.getElementById('t-priority').value,status:document.getElementById('t-status').value,due:document.getElementById('t-due').value,category:document.getElementById('t-category').value,notes:document.getElementById('t-notes').value}; if(eid){var idx=DB.tasks.findIndex(function(x){return x.id==eid;});if(idx>=0){var prevStatus=DB.tasks[idx].status;task.id=+eid;task.created=DB.tasks[idx].created;task.isRecurring=DB.tasks[idx].isRecurring;task.templateId=DB.tasks[idx].templateId;DB.tasks[idx]=task;logActivity('Updated task: '+title);}}else{task.id=DB.nextId.task++;task.created=new Date().toISOString();DB.tasks.push(task);logActivity('Created task: '+title);} save();closeModal('modal-task');renderTasks();renderDashboard();toast('Task saved!','success'); }
 function deleteTask(id){ if(!confirm('Delete this task?'))return; var t=DB.tasks.find(function(x){return x.id===id;}); DB.tasks=DB.tasks.filter(function(x){return x.id!==id;}); logActivity('Deleted task: '+(t?t.title:'')); save();renderTasks();renderDashboard();toast('Task deleted.'); }
 
 // ── CLIENTS ──
@@ -1282,70 +1262,6 @@ function addCustomRecurring(){
   toast('Custom recurring task added!','success');
 }
 
-// ── AUTO EMAIL (EmailJS) ──
-function saveEmailConfig(){
-  DB.emailConfig={
-    serviceId:document.getElementById('ejs-service').value.trim(),
-    templateId:document.getElementById('ejs-template').value.trim(),
-    pubKey:document.getElementById('ejs-pubkey').value.trim(),
-    senderName:document.getElementById('ejs-sender').value.trim()||'PSRB & Associates LLP'
-  };
-  if(DB.emailConfig.pubKey) emailjs.init(DB.emailConfig.pubKey);
-  save();
-  toast('Email config saved!','success');
-}
-
-function loadEmailConfigUI(){
-  var ec=DB.emailConfig||{};
-  if(document.getElementById('ejs-service')) document.getElementById('ejs-service').value=ec.serviceId||'';
-  if(document.getElementById('ejs-template')) document.getElementById('ejs-template').value=ec.templateId||'';
-  if(document.getElementById('ejs-pubkey')) document.getElementById('ejs-pubkey').value=ec.pubKey||'';
-  if(document.getElementById('ejs-sender')) document.getElementById('ejs-sender').value=ec.senderName||'PSRB & Associates LLP';
-  if(ec.pubKey) emailjs.init(ec.pubKey);
-}
-
-function sendCompletionEmail(task){
-  var ec=Object.assign({},EMAILJS_DEFAULTS,DB.emailConfig||{});
-  if(!ec.serviceId||!ec.templateId||!ec.pubKey){ return; }
-  var client=DB.clients.find(function(c){return c.name===task.client;});
-  var toEmail=client&&client.email?client.email:'';
-  if(!toEmail){ return; }
-  var params={
-    to_email: toEmail,
-    to_name: client.contact||client.name,
-    client_name: client.name,
-    task_title: task.title,
-    category: task.category||'',
-    due_date: fmtDate(task.due),
-    assignee: task.assignee||'Our Team',
-    firm_name: ec.senderName||'PSRB & Associates LLP',
-    firm_email: 'ca.psrb.llp@gmail.com',
-    firm_phone: '+91-9437634787'
-  };
-  emailjs.send(ec.serviceId, ec.templateId, params)
-    .then(function(){ logActivity('Completion email sent to '+toEmail+' for: '+task.title); save(); toast('✉️ Completion email sent to '+client.name+'!','success'); })
-    .catch(function(e){ console.error('EmailJS error',e); toast('Email config error — check Settings.','error'); });
-}
-
-function testEmail(){
-  var ec=Object.assign({},EMAILJS_DEFAULTS,DB.emailConfig||{});
-  emailjs.init(ec.pubKey);
-  var params={
-    to_email: DB.currentUser&&DB.currentUser.email?DB.currentUser.email:'ca.psrb.llp@gmail.com',
-    to_name: 'Test User',
-    client_name: 'Test Client Pvt Ltd',
-    task_title: 'GST Return July 2026 — TEST',
-    category: 'GST',
-    due_date: fmtDate(today()),
-    assignee: DB.currentUser&&DB.currentUser.name?DB.currentUser.name:'PSRB Team',
-    firm_name: ec.senderName||'PSRB & Associates LLP',
-    firm_email: 'ca.psrb.llp@gmail.com',
-    firm_phone: '+91-9437634787'
-  };
-  emailjs.send(ec.serviceId, ec.templateId, params)
-    .then(function(){ toast('✉️ Test email sent successfully!','success'); })
-    .catch(function(e){ toast('Failed: '+e.text,'error'); });
-}
 
 // ── WORK CHART ──
 function renderWorkChart(){
