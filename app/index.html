@@ -230,6 +230,7 @@ tr:hover td{background:var(--cream);}
     <button class="nav-item" onclick="showView('deadlines',this)"><span class="icon">📅</span> Deadlines <span class="nav-badge" id="overdue-badge" style="display:none">!</span></button>
     <button class="nav-item" onclick="showView('workchart',this)" id="nav-workchart"><span class="icon">📊</span> Work Chart</button>
     <button class="nav-item" onclick="showView('recurring',this)" id="nav-recurring"><span class="icon">🔁</span> Recurring Setup</button>
+    <button class="nav-item" onclick="showView('templates',this)" id="nav-templates"><span class="icon">📝</span> Work Templates</button>
     <div class="sidebar-section">Finance</div>
     <button class="nav-item" onclick="showView('clients',this)" id="nav-clients2"><span class="icon">👥</span> Clients</button>
     <button class="nav-item" onclick="showView('billing',this)" id="nav-billing"><span class="icon">💰</span> Billing & Fees</button>
@@ -267,6 +268,7 @@ tr:hover td{background:var(--cream);}
 
       <!-- DASHBOARD -->
       <div class="view active" id="view-dashboard">
+        <div id="dash-notifications" style="margin-bottom:16px;"></div>
         <div class="stats-grid">
           <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-label">Active Tasks</div><div class="stat-num" id="s-tasks">0</div><div class="stat-change" id="s-tasks-sub"></div></div>
           <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-label">Total Clients</div><div class="stat-num" id="s-clients">0</div><div class="stat-change" id="s-clients-sub"></div></div>
@@ -570,11 +572,41 @@ tr:hover td{background:var(--cream);}
         </div>
       </div>
 
+      <!-- TEMPLATES -->
+      <div class="view" id="view-templates">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <div class="card-title">📝 Work Templates & Process Checklists</div>
+            <span style="font-size:12px;color:var(--muted);">Reference guides for standard CA firm workflows</span>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+            <button class="btn btn-sm btn-outline" onclick="filterTemplates('')" id="tpl-btn-all" style="background:var(--gold);color:#fff;border-color:var(--gold);">All</button>
+            <button class="btn btn-sm btn-outline" onclick="filterTemplates('Incorporation')" id="tpl-btn-Incorporation">Incorporation</button>
+            <button class="btn btn-sm btn-outline" onclick="filterTemplates('GST')" id="tpl-btn-GST">GST</button>
+            <button class="btn btn-sm btn-outline" onclick="filterTemplates('Income Tax')" id="tpl-btn-Income Tax">Income Tax</button>
+            <button class="btn btn-sm btn-outline" onclick="filterTemplates('ROC')" id="tpl-btn-ROC">ROC / MCA</button>
+            <button class="btn btn-sm btn-outline" onclick="filterTemplates('Audit')" id="tpl-btn-Audit">Audit</button>
+            <button class="btn btn-sm btn-outline" onclick="filterTemplates('TDS')" id="tpl-btn-TDS">TDS</button>
+          </div>
+        </div>
+        <div id="templates-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:18px;"></div>
+      </div>
+
+      <!-- TEMPLATE DETAIL MODAL trigger area -->
+
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /app -->
 
 <!-- MODALS -->
+<div class="modal-overlay" id="modal-template">
+  <div class="modal" style="width:680px;max-height:85vh;overflow-y:auto;">
+    <div class="modal-title" id="tpl-modal-title">Template</div>
+    <div id="tpl-modal-body"></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-template')">Close</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-task">
   <div class="modal">
     <div class="modal-title" id="task-modal-title">New Task</div>
@@ -932,10 +964,11 @@ function showView(id, btn){
   document.getElementById('view-'+id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   if(btn) btn.classList.add('active');
-  var titles={dashboard:'Dashboard',tasks:'Tasks',clients:'Clients',deadlines:'Deadlines',billing:'Billing & Fees',documents:'Documents',team:'Team',settings:'Settings',workchart:'Work Chart',recurring:'Recurring Setup',access:'Access Control'};
+  var titles={dashboard:'Dashboard',tasks:'Tasks',clients:'Clients',deadlines:'Deadlines',billing:'Billing & Fees',documents:'Documents',team:'Team',settings:'Settings',workchart:'Work Chart',recurring:'Recurring Setup',access:'Access Control',templates:'Work Templates'};
   // Permission gate
-  var permGate={clients:'view_clients',billing:'view_billing',recurring:'manage_recurring',team:'view_team'};
+  var permGate={clients:'view_clients',recurring:'manage_recurring',team:'view_team'};
   if(id==='access'&&!isPartner()){ showView('dashboard',null); return; }
+  if(id==='billing'&&!canSeeBilling()){ showView('dashboard',null); return; }
   else if(permGate[id]&&!hasPermission(permGate[id])){ showView('dashboard',null); return; }
   document.getElementById('topbar-title').textContent=titles[id]||id;
   if(id==='tasks') renderTasks();
@@ -948,6 +981,7 @@ function showView(id, btn){
   if(id==='workchart') renderWorkChart();
   if(id==='recurring') renderRecurring();
   if(id==='access') renderAccessControl();
+  if(id==='templates') renderTemplates();
 }
 
 // ── REFRESH ALL ──
@@ -980,13 +1014,38 @@ function renderDashboard(){
   document.getElementById('s-fees').textContent='₹'+pendingFees.toLocaleString('en-IN');
   document.getElementById('s-fees-sub').textContent=billing.filter(function(b){return b.status!=='Paid';}).length+' invoices pending';
 
-  // Dash tasks
+  // Notifications for current user
+  var dn=document.getElementById('dash-notifications');
+  if(dn){
+    var me=DB.currentUser?DB.currentUser.name:'';
+    var myNotifs=(DB.notifications||[]).filter(function(n){return n.to===me&&!n.read;});
+    if(myNotifs.length){
+      dn.innerHTML='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:4px;">'+myNotifs.map(function(n){
+        return '<div style="background:linear-gradient(135deg,#fff7e6,#fef3c7);border:1.5px solid var(--gold);border-radius:10px;padding:12px 16px;display:flex;align-items:flex-start;gap:12px;">'+
+          '<span style="font-size:20px;flex-shrink:0;">🔔</span>'+
+          '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--dark);">'+esc(n.msg)+'</div>'+
+          '<div style="font-size:11px;color:var(--muted);margin-top:3px;">'+new Date(n.ts).toLocaleString('en-IN')+'</div></div>'+
+          '<button onclick="dismissNotif('+n.id+')" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted);flex-shrink:0;" title="Dismiss">✕</button>'+
+        '</div>';
+      }).join('')+'</div>';
+    } else { dn.innerHTML=''; }
+  }
+
+  // Dash tasks — current user's tasks first
   var dt=document.getElementById('dash-tasks');
-  var show=tasks.filter(function(t){return t.status!=='Done';}).slice(0,6);
+  var me2=DB.currentUser?DB.currentUser.name:'';
+  var activeDash=tasks.filter(function(t){return t.status!=='Done';});
+  var myTasks=activeDash.filter(function(t){return t.assignee===me2;});
+  var otherTasks=activeDash.filter(function(t){return t.assignee!==me2;});
+  var show=myTasks.concat(otherTasks).slice(0,8);
   if(!show.length){ dt.innerHTML='<div class="empty-state"><div class="icon">🎉</div><p>All tasks completed!</p></div>'; }
   else{ dt.innerHTML=show.map(function(t){
-    return '<div class="deadline-item"><div style="flex:1"><div class="deadline-title">'+esc(t.title)+'</div><div class="deadline-sub">'+esc(t.client||'—')+' · '+esc(t.assignee||'Unassigned')+'</div></div>'+
-    '<span class="badge badge-'+statusClass(t.status)+'">'+t.status+'</span>'+'<span class="deadline-days days-'+daysClass(daysUntil(t.due))+'">'+daysLabel(daysUntil(t.due))+'</span></div>';
+    var isMe=t.assignee===me2;
+    return '<div class="deadline-item" style="'+(isMe?'border-left:3px solid var(--gold);padding-left:10px;':'')+'">'+
+      '<div style="flex:1"><div class="deadline-title">'+esc(t.title)+(isMe?'<span style="font-size:10px;background:var(--gold);color:#fff;border-radius:4px;padding:1px 5px;margin-left:6px;">Mine</span>':'')+'</div>'+
+      '<div class="deadline-sub">'+esc(t.client||'—')+' · '+esc(t.assignee||'Unassigned')+'</div></div>'+
+      '<span class="badge badge-'+statusClass(t.status)+'">'+t.status+'</span>'+
+      '<span class="deadline-days days-'+daysClass(daysUntil(t.due))+'">'+daysLabel(daysUntil(t.due))+'</span></div>';
   }).join(''); }
 
   // Dash deadlines
@@ -1188,8 +1247,10 @@ function populateDropdowns(){
   var clients=DB.clients||[]; var team=DB.team||[];
   var cOpts='<option value="">— None —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
   var tOpts='<option value="">— Unassigned —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>';}).join('');
+  var tOptsTransfer='<option value="">— Select Member —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>';}).join('');
   ['t-client','dl-client','doc-client','bill-client'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=id==='bill-client'?'<option value="">— Select —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join(''):cOpts;});
   ['t-assignee','dl-assignee','c-assignee'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=tOpts;});
+  var ttEl=document.getElementById('transfer-to'); if(ttEl) ttEl.innerHTML=tOptsTransfer;
 }
 function openQuickAdd(){ document.getElementById('modal-quickadd').classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
@@ -1202,11 +1263,17 @@ function esc(s){ if(!s&&s!==0)return ''; return String(s).replace(/&/g,'&amp;').
 function logActivity(text){ if(!DB.activity)DB.activity=[]; var user=DB.currentUser?DB.currentUser.name:'System'; DB.activity.push({text:user+': '+text,ts:new Date().toISOString()}); if(DB.activity.length>100)DB.activity=DB.activity.slice(-100); }
 function toast(msg,type){ var el=document.getElementById('toast'); el.textContent=msg; el.className='toast '+(type||''); el.classList.add('show'); setTimeout(function(){el.classList.remove('show');},2500); }
 function globalSearch(q){ if(!q||q.length<2)return; /* simple highlight across visible view */ }
+function dismissNotif(id){ if(!DB.notifications)return; var n=DB.notifications.find(function(x){return x.id===id;}); if(n){n.read=true;} save(); renderDashboard(); }
 
 // ── PERMISSIONS ──
 function isPartner(){
   var u=DB.currentUser; if(!u) return false;
   return u.role&&(u.role.toLowerCase().includes('partner')||u.role.toLowerCase().includes('managing'));
+}
+function isSeniorManager(){
+  if(isPartner()) return true;
+  var u=DB.currentUser; if(!u) return false;
+  return u.role&&(u.role.toLowerCase().includes('senior')||u.role.toLowerCase().includes('manager'));
 }
 function hasPermission(perm){
   if(isPartner()) return true;
@@ -1214,17 +1281,27 @@ function hasPermission(perm){
   var perms=((DB.permissions||{})[u.email])||{};
   return !!perms[perm];
 }
+function canSeeBilling(){
+  return isSeniorManager()||hasPermission('view_billing');
+}
 var VIEW_PERMS={clients:'view_clients',billing:'view_billing',recurring:'manage_recurring',team:'view_team',access:'partner_only'};
 
 function updateSidebarForRole(){
   var partner=isPartner();
-  var restricted=['nav-clients2','nav-billing','nav-recurring','nav-team','nav-access'];
-  restricted.forEach(function(id){
-    var el=document.getElementById(id); if(!el) return;
-    var view=id.replace('nav-','').replace('2','');
-    if(id==='nav-access'){ el.style.display=partner?'':'none'; return; }
-    var perm=VIEW_PERMS[view];
-    el.style.display=(partner||hasPermission(perm))?'':'none';
+  // Billing: only partners + senior managers (by role) or explicit permission
+  var billingEl=document.getElementById('nav-billing');
+  if(billingEl) billingEl.style.display=canSeeBilling()?'':'none';
+  // Access control: partners only
+  var accessEl=document.getElementById('nav-access');
+  if(accessEl) accessEl.style.display=partner?'':'none';
+  // Templates: always visible to all logged-in users
+  var tplEl=document.getElementById('nav-templates');
+  if(tplEl) tplEl.style.display='';
+  // Other permission-gated items
+  var gated={clients2:'view_clients',recurring:'manage_recurring',team:'view_team'};
+  Object.keys(gated).forEach(function(key){
+    var el=document.getElementById('nav-'+key); if(!el) return;
+    el.style.display=(partner||hasPermission(gated[key]))?'':'none';
   });
 }
 
@@ -1657,6 +1734,9 @@ function doTransfer(){
   // Record history
   if(!DB.transferHistory) DB.transferHistory=[];
   DB.transferHistory.push({taskId:taskId,taskTitle:t.title,from:from,to:to,note:note,ts:new Date().toISOString()});
+  // Notification for recipient
+  if(!DB.notifications) DB.notifications=[];
+  DB.notifications.push({id:Date.now(),to:to,msg:'Task "'+t.title+'" was transferred to you by '+from+(note?' — Note: '+note:''),ts:new Date().toISOString(),read:false});
   // Update task
   t.assignee=to;
   t.status=newStatus;
@@ -1669,6 +1749,203 @@ function doTransfer(){
   renderWorkChart();
   renderDashboard();
   toast('Task transferred to '+to+'!','success');
+}
+
+// ── WORK TEMPLATES ──
+var WORK_TEMPLATES=[
+  {
+    id:'t1', category:'Incorporation', title:'New Private Limited Company Incorporation',
+    desc:'End-to-end checklist for incorporating a Pvt Ltd company under MCA / Companies Act 2013.',
+    time:'15–25 working days', difficulty:'Medium',
+    docs:['PAN & Aadhaar of all directors','Passport-size photos of directors','Address proof (utility bill, not older than 2 months)','Proof of registered office (NOC from owner + utility bill)','MOA & AOA draft','DSC (Digital Signature Certificate) of all directors','DIN (Director Identification Number)'],
+    steps:[
+      {n:1, title:'Obtain DSC for all proposed directors', detail:'Apply DSC (Class 3) from licensed Certifying Authorities (eMudhra, Sify). Requires PAN, Aadhaar, photo. Takes 1–2 days.'},
+      {n:2, title:'Apply for DIN (if not already obtained)', detail:'DIN is applied through SPICe+ Part A form on MCA portal. Existing DIN holders skip this step.'},
+      {n:3, title:'Name reservation via SPICe+ Part A', detail:'Propose up to 2 names in order of preference. Check availability at mca.gov.in. MCA approves/rejects within 1–2 days.'},
+      {n:4, title:'Draft MOA & AOA', detail:'Memorandum of Association (objects, capital) and Articles of Association (rules). Use standard Table-F for Pvt Ltd. Get client approval before filing.'},
+      {n:5, title:'File SPICe+ Part B on MCA portal', detail:'Fill company details, authorized capital, subscriber info, office address. Attach all scanned documents. Pay stamp duty (state-specific).'},
+      {n:6, title:'File AGILE-PRO-S (linked with SPICe+)', detail:'Simultaneously apply for GST registration, EPFO, ESIC, and bank account opening via the linked AGILE form.'},
+      {n:7, title:'Receive Certificate of Incorporation (COI)', detail:'MCA issues COI with CIN (Corporate Identity Number). Usually 5–7 days after SPICe+ approval.'},
+      {n:8, title:'Apply for PAN & TAN of the company', detail:'Filed as part of SPICe+ itself. Confirm receipt of PAN card and TAN allotment letter.'},
+      {n:9, title:'Open company current account', detail:'Take COI, PAN, MOA/AOA to bank. Directors need to bring KYC. Deposit paid-up capital (minimum ₹1 lakh recommended).'},
+      {n:10, title:'GST Registration (if applicable)', detail:'If turnover expected to exceed ₹20L (₹10L for special category states), file GST registration on gst.gov.in within 30 days of incorporation.'},
+      {n:11, title:'First Board Meeting & statutory registers', detail:'Hold first board meeting within 30 days of incorporation. Appoint auditor (Form ADT-1 within 15 days of first AGM). Maintain statutory registers.'},
+      {n:12, title:'Commencement of Business (INC-20A)', detail:'File Form INC-20A within 180 days of incorporation with proof of bank deposit of paid-up capital. Mandatory before commencing business.'}
+    ]
+  },
+  {
+    id:'t2', category:'GST', title:'GST Registration — New Applicant',
+    desc:'Process for fresh GST registration for a business crossing threshold or for voluntary registration.',
+    time:'5–7 working days', difficulty:'Easy',
+    docs:['PAN of business / proprietor / partners / directors','Aadhaar of authorized signatory','Passport photo of proprietor / partners / directors','Proof of principal place of business (own: property tax receipt; rented: rent agreement + NOC)','Bank account details (cancelled cheque / bank statement)','Digital Signature or EVC for filing'],
+    steps:[
+      {n:1, title:'Assess GST applicability', detail:'Confirm turnover exceeds ₹20L (₹10L for special category states) or business is inter-state supplier, e-commerce operator, or voluntary registrant.'},
+      {n:2, title:'Collect and verify all documents', detail:'Check PAN spellings match exactly, address proof is not older than 2 months, bank account is in business name (for companies/LLPs).'},
+      {n:3, title:'Generate TRN (Temporary Reference Number)', detail:'Go to gst.gov.in → Services → Registration → New Registration. Fill Part A with PAN, email, mobile. OTP verification generates TRN.'},
+      {n:4, title:'Complete Part B of GST REG-01', detail:'Login with TRN, fill business details, HSN/SAC codes, business nature, bank details, upload all documents. Add authorized signatory.'},
+      {n:5, title:'Submit application with DSC / EVC', detail:'Companies/LLPs must use DSC. Proprietors/individuals can use Aadhaar-based EVC. Submit and note ARN (Application Reference Number).'},
+      {n:6, title:'GST officer scrutiny (if required)', detail:'Officer may raise queries (GSTR REG-03) within 3 working days. Respond within 7 working days via GSTR REG-04. If no query, approval is automatic.'},
+      {n:7, title:'Receive GSTIN', detail:'GST Registration Certificate (GSTR REG-06) issued with GSTIN. Download and save. Display at place of business as required.'},
+      {n:8, title:'Update GSTIN in all records', detail:'Update on letterheads, invoices, website, bank records. Inform existing clients / vendors of new GSTIN.'}
+    ]
+  },
+  {
+    id:'t3', category:'Income Tax', title:'Income Tax Return Filing — Business / Firm',
+    desc:'Annual ITR filing process for proprietorship, partnership firm, or company (ITR-3/5/6).',
+    time:'3–5 working days (after data receipt)', difficulty:'Medium',
+    docs:['PAN of assessee','Books of accounts / Tally data','Bank statements (all accounts) for the year','TDS certificates (Form 16A / 26AS / AIS)','Last year\'s ITR and computation','GST returns filed during the year','Loan statements (if any)','Asset purchase / sale details'],
+    steps:[
+      {n:1, title:'Obtain and reconcile 26AS / AIS / TIS', detail:'Download Form 26AS and Annual Information Statement from income tax portal. Reconcile TDS credits, advance tax paid, high-value transactions.'},
+      {n:2, title:'Finalize books of accounts', detail:'Ensure all entries posted, bank reconciliation done, closing stock valued. For firms/companies, ensure partners\' capital accounts updated.'},
+      {n:3, title:'Prepare P&L and Balance Sheet', detail:'Extract trial balance, prepare financial statements. Apply correct depreciation (IT Act rates, not Companies Act). Compute net profit.'},
+      {n:4, title:'Tax audit check (if applicable)', detail:'If turnover >₹1Cr (business) or ₹50L (profession), tax audit under Sec 44AB is mandatory. Complete Form 3CD with auditor.'},
+      {n:5, title:'Compute taxable income', detail:'Add back disallowances (Sec 40, 40A, 43B). Apply deductions (80C, 80D etc. for individuals). Compute tax at applicable rates.'},
+      {n:6, title:'Verify advance tax / self-assessment tax payment', detail:'If tax liability >₹10,000, confirm advance tax paid on time. Pay self-assessment tax (Challan 280) for any balance before filing.'},
+      {n:7, title:'File ITR on income tax portal', detail:'Select correct ITR form. Fill income details, deductions, tax paid. Upload XML / use online filing. Attach audit report if applicable.'},
+      {n:8, title:'E-verify ITR', detail:'Verify within 30 days of filing via Aadhaar OTP, net banking, or DSC. Unverified returns are treated as not filed.'},
+      {n:9, title:'Confirm acknowledgment (ITR-V)', detail:'Download ITR-V / acknowledgment. Save in client file. Share with client.'}
+    ]
+  },
+  {
+    id:'t4', category:'ROC', title:'Annual ROC Compliance — Private Limited Company',
+    desc:'Mandatory annual filings with MCA for all registered companies under Companies Act 2013.',
+    time:'Plan by September each year', difficulty:'Medium',
+    docs:['Audited financial statements','Board resolution for adoption of accounts','AGM notice and minutes','Form ADT-1 (auditor appointment)','Director KYC details','MGT-7A / MGT-7 data','AOC-4 financial data'],
+    steps:[
+      {n:1, title:'Hold Annual General Meeting (AGM)', detail:'AGM must be held within 6 months of financial year end (i.e., by 30 September for March year-end companies). Give 21 days\' notice to shareholders.'},
+      {n:2, title:'Adopt audited financial statements', detail:'Place auditor\'s report and financial statements before AGM for adoption. Maintain minutes of AGM.'},
+      {n:3, title:'File Form ADT-1 (Auditor appointment)', detail:'File within 15 days of AGM. For first auditor, within 15 days of first AGM. Penalty: ₹300/day.'},
+      {n:4, title:'File Form AOC-4 (Financial Statements)', detail:'File audited Balance Sheet, P&L, and notes within 30 days of AGM. Attach Board\'s Report, Auditor\'s Report, MGT-9 (if applicable).'},
+      {n:5, title:'File Form MGT-7 / MGT-7A (Annual Return)', detail:'MGT-7A for small companies; MGT-7 for others. File within 60 days of AGM. Contains shareholding pattern, director details.'},
+      {n:6, title:'Director KYC (DIR-3 KYC)', detail:'Every director with DIN must file DIR-3 KYC annually by 30 September. Web-based for those filed previously. Fresh form for new filers.'},
+      {n:7, title:'File Income Tax Return', detail:'Company ITR (ITR-6) due by 31 October (if tax audit applicable) or 31 July. Coordinate with tax team.'},
+      {n:8, title:'Maintain statutory registers', detail:'Update Register of Members, Register of Directors, Minutes books after AGM. Keep at registered office.'}
+    ]
+  },
+  {
+    id:'t5', category:'TDS', title:'TDS Return Filing — Quarterly',
+    desc:'Process for filing quarterly TDS returns (Form 24Q / 26Q / 27Q) for deductors.',
+    time:'Before due date each quarter', difficulty:'Easy',
+    docs:['Challan details (BSR code, date, amount, serial number)','Deductee PAN list','Nature of payment and TDS rates applied','Previous quarter return acknowledgment','TRACES login credentials','Form 16 / 16A data'],
+    steps:[
+      {n:1, title:'Collect TDS payment challans', detail:'Gather all TDS challans paid during the quarter (Challan 281). Note BSR code, challan date, serial number, and amount for each.'},
+      {n:2, title:'Compile deductee details', detail:'For each payment (salary, contractor, rent, professional fees etc.), note payee name, PAN, amount paid, TDS deducted, nature of payment (section).'},
+      {n:3, title:'Verify PAN validity', detail:'Check all deductee PANs on TRACES portal (bulk PAN verification). Invalid PANs attract 20% TDS rate — rectify before filing.'},
+      {n:4, title:'Prepare return using RPU (Return Preparation Utility)', detail:'Download latest RPU from TDSCPC/TRACES. Enter challan details in Annexure I, deductee details in Annexure II. Validate using FVU.'},
+      {n:5, title:'Generate .fvu file and file return', detail:'Upload .fvu file on TRACES / e-filing portal. For large deductors — file via e-TDS intermediary. Note acknowledgment number (PRN).'},
+      {n:6, title:'Verify filing on TRACES', detail:'Login to TRACES, check status of filed return. Defaults (short deduction, late filing interest) should be reviewed and paid.'},
+      {n:7, title:'Generate Form 16 / 16A', detail:'After return processing, download Form 16A (non-salary) from TRACES. For salary (24Q Q4), generate Form 16 Part A from TRACES + Part B manually. Issue to deductees within due date.'}
+    ]
+  },
+  {
+    id:'t6', category:'Audit', title:'Statutory Audit — Pre-Audit Preparation',
+    desc:'Partner-led readiness checklist to complete before fieldwork begins for a statutory audit.',
+    time:'4–6 weeks before audit commencement', difficulty:'High',
+    docs:['Previous year audited financials and audit report','Management accounts / trial balance (current year)','Bank statements and reconciliations','Fixed asset register','TDS, GST, PF, ESI payment proofs','Board minutes and resolutions','Related party transaction details','Loan agreements and repayment schedules'],
+    steps:[
+      {n:1, title:'Engagement letter and fee confirmation', detail:'Issue / re-confirm engagement letter for current year. Confirm audit fee and timeline with management.'},
+      {n:2, title:'Obtain updated trial balance', detail:'Request trial balance as of audit date. Check that all entries for the year are posted — including depreciation, provisions, prepaid adjustments.'},
+      {n:3, title:'Review bank reconciliations', detail:'All bank accounts must be reconciled as of year-end. Obtain BRS for each account. Outstanding cheques older than 3 months need explanation.'},
+      {n:4, title:'Physical stock verification', detail:'Attend or review client\'s physical inventory count. Verify valuation method (FIFO/weighted average) is consistent with previous year.'},
+      {n:5, title:'Verify statutory dues', detail:'Check TDS, GST, PF, ESI, PT challans. Confirm all dues paid by due dates. Late payments attract interest — verify provisions made.'},
+      {n:6, title:'Fixed asset review', detail:'Reconcile fixed asset register to ledger. Verify additions (invoices), disposals (board approval), and depreciation computation (Schedule II rates).'},
+      {n:7, title:'Related party transaction review', detail:'Obtain complete RPT list. Verify disclosures in board minutes. Check Sec 188 compliance for transactions requiring prior approval.'},
+      {n:8, title:'Loans and borrowings verification', detail:'Obtain confirmation from lenders. Reconcile principal, interest, EMI to loan statements. Check CARO 2020 requirements.'},
+      {n:9, title:'Finalize audit report and management letter', detail:'Complete CARO 2020 (if applicable), Form 3CD (if tax audit), and main audit report. Discuss management letter observations with Partner before issuing.'}
+    ]
+  },
+  {
+    id:'t7', category:'GST', title:'Monthly GST Return Filing (GSTR-1 + GSTR-3B)',
+    desc:'Monthly GST compliance process for regular taxpayers.',
+    time:'By 11th and 20th of following month', difficulty:'Easy',
+    docs:['Sales invoices (B2B and B2C)','Purchase invoices and ITC details','Credit / debit notes','Previous month GSTR-3B','E-way bill data (if applicable)','GST payment challan details'],
+    steps:[
+      {n:1, title:'Compile sales data (GSTR-1)', detail:'Categorize invoices: B2B (party-wise with GSTIN), B2C large (>₹2.5L inter-state), B2C small (aggregate). Include CDNs, advances received.'},
+      {n:2, title:'File GSTR-1 by 11th', detail:'Login to gst.gov.in, upload invoice data. Verify auto-populated data. File GSTR-1. Amendment invoices from prior months must be included.'},
+      {n:3, title:'Reconcile ITC in GSTR-2B', detail:'Download auto-generated GSTR-2B (ITC statement). Reconcile with purchase register. Blocked credits (Sec 17(5)) must be reversed.'},
+      {n:4, title:'Prepare GSTR-3B', detail:'Fill outward supply summary, ITC claimed, net tax payable. Reverse any ineligible ITC. Compute IGST/CGST/SGST liability.'},
+      {n:5, title:'Pay GST liability and file GSTR-3B by 20th', detail:'Create challan on GST portal, pay via net banking / NEFT. File GSTR-3B after payment. Note: payment first, then filing.'},
+      {n:6, title:'Reconcile GSTR-1 vs GSTR-3B', detail:'Ensure tax values in GSTR-1 and GSTR-3B match. Differences cause notices. Reconcile and carry forward adjustments.'}
+    ]
+  },
+  {
+    id:'t8', category:'Incorporation', title:'LLP Registration',
+    desc:'Process for registering a Limited Liability Partnership under LLP Act 2008.',
+    time:'10–15 working days', difficulty:'Easy',
+    docs:['PAN & Aadhaar of all designated partners','Address proof of designated partners','Proof of registered office (NOC + utility bill)','LLP Agreement draft','DSC of all designated partners','DPIN (Designated Partner Identification Number) if not obtained'],
+    steps:[
+      {n:1, title:'Obtain DSC for all designated partners', detail:'Class 3 DSC required for all designated partners. Apply via eMudhra/Sify with PAN, Aadhaar, photo.'},
+      {n:2, title:'Apply for DPIN (if not obtained)', detail:'DPIN can be applied through FiLLiP form itself. Existing DIN holders can use DIN as DPIN.'},
+      {n:3, title:'Name reservation via RUN-LLP', detail:'File RUN-LLP on MCA portal with 2 name options. MCA approves/rejects in 2–3 days. Approved name reserved for 90 days.'},
+      {n:4, title:'File FiLLiP (Form for Incorporation of LLP)', detail:'File on MCA portal with partner details, capital contribution, registered office address. Attach DSC, address proof, DPIN docs.'},
+      {n:5, title:'Receive Certificate of Incorporation', detail:'MCA issues COI with LLPIN (LLP Identification Number). Issued within 5–7 days of FiLLiP approval.'},
+      {n:6, title:'Draft and file LLP Agreement (Form 3)', detail:'File LLP Agreement within 30 days of incorporation. Agreement must cover profit sharing ratio, partner rights, management. Penalty ₹100/day for delay.'},
+      {n:7, title:'Apply for PAN and TAN', detail:'Apply for PAN (Form 49A) and TAN (Form 49B) of the LLP. Usually issued within 5–7 working days.'},
+      {n:8, title:'GST / other registrations', detail:'Apply for GST if applicable. Open current account with COI, PAN, LLP Agreement. Complete KYC of all partners at bank.'}
+    ]
+  }
+];
+
+var _tplFilter='';
+function filterTemplates(cat){
+  _tplFilter=cat;
+  document.querySelectorAll('[id^="tpl-btn-"]').forEach(function(b){
+    b.style.background=''; b.style.color=''; b.style.borderColor='';
+  });
+  var activeId='tpl-btn-'+(cat||'all');
+  var activeBtn=document.getElementById(activeId);
+  if(activeBtn){activeBtn.style.background='var(--gold)';activeBtn.style.color='#fff';activeBtn.style.borderColor='var(--gold)';}
+  renderTemplates();
+}
+function renderTemplates(){
+  var grid=document.getElementById('templates-grid'); if(!grid)return;
+  var list=_tplFilter?WORK_TEMPLATES.filter(function(t){return t.category===_tplFilter;}):WORK_TEMPLATES;
+  if(!list.length){grid.innerHTML='<div class="empty-state"><div class="icon">📝</div><p>No templates in this category.</p></div>';return;}
+  var diffColor={Easy:'#38a169',Medium:'#D69E2E',High:'#e53e3e'};
+  grid.innerHTML=list.map(function(t){
+    return '<div class="card" style="cursor:pointer;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow=\'0 4px 20px rgba(0,0,0,0.12)\'" onmouseout="this.style.boxShadow=\'\'" onclick="openTemplate(\''+t.id+'\')">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'+
+        '<span style="font-size:11px;font-weight:700;background:var(--cream);color:var(--gold);border:1px solid var(--gold);border-radius:20px;padding:2px 10px;">'+esc(t.category)+'</span>'+
+        '<span style="font-size:11px;font-weight:700;color:'+diffColor[t.difficulty]+';background:'+diffColor[t.difficulty]+'18;border-radius:20px;padding:2px 10px;">'+t.difficulty+'</span>'+
+      '</div>'+
+      '<div style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:6px;">'+esc(t.title)+'</div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">'+esc(t.desc)+'</div>'+
+      '<div style="display:flex;gap:16px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:10px;">'+
+        '<span>⏱ '+esc(t.time)+'</span>'+
+        '<span>📋 '+t.steps.length+' steps</span>'+
+        '<span>📄 '+t.docs.length+' documents</span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function openTemplate(id){
+  var t=WORK_TEMPLATES.find(function(x){return x.id===id;}); if(!t)return;
+  document.getElementById('tpl-modal-title').textContent=t.title;
+  var diffColor={Easy:'#38a169',Medium:'#D69E2E',High:'#e53e3e'};
+  document.getElementById('tpl-modal-body').innerHTML=
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">'+
+      '<span style="font-size:11px;font-weight:700;background:var(--cream);color:var(--gold);border:1px solid var(--gold);border-radius:20px;padding:3px 12px;">'+esc(t.category)+'</span>'+
+      '<span style="font-size:11px;color:'+diffColor[t.difficulty]+';background:'+diffColor[t.difficulty]+'18;border-radius:20px;padding:3px 12px;font-weight:700;">'+t.difficulty+'</span>'+
+      '<span style="font-size:11px;color:var(--muted);background:var(--cream);border-radius:20px;padding:3px 12px;">⏱ '+esc(t.time)+'</span>'+
+    '</div>'+
+    '<p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6;">'+esc(t.desc)+'</p>'+
+    '<div style="background:var(--cream);border-radius:10px;padding:14px 16px;margin-bottom:18px;">'+
+      '<div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:10px;">📄 Documents Required</div>'+
+      '<ul style="margin:0;padding-left:18px;font-size:13px;color:var(--dark);line-height:1.8;">'+
+        t.docs.map(function(d){return '<li>'+esc(d)+'</li>';}).join('')+
+      '</ul>'+
+    '</div>'+
+    '<div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:12px;">📋 Step-by-Step Process</div>'+
+    t.steps.map(function(s){
+      return '<div style="display:flex;gap:12px;margin-bottom:14px;padding:12px;border:1px solid var(--border);border-radius:10px;background:#fff;">'+
+        '<div style="flex-shrink:0;width:28px;height:28px;background:var(--gold);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">'+s.n+'</div>'+
+        '<div>'+
+          '<div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:4px;">'+esc(s.title)+'</div>'+
+          '<div style="font-size:12px;color:var(--muted);line-height:1.6;">'+esc(s.detail)+'</div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  document.getElementById('modal-template').classList.add('open');
 }
 
 // Click outside modal to close
