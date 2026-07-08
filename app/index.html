@@ -693,7 +693,7 @@ function load(){
     save();
   }
 }
-function save(){ localStorage.setItem('psrb_os_v2',JSON.stringify(DB)); }
+function save(){ var d=Object.assign({},DB); delete d.currentUser; localStorage.setItem('psrb_os_v2',JSON.stringify(d)); }
 function fmt(d){ return d.toISOString().split('T')[0]; }
 function today(){ return fmt(new Date()); }
 function daysUntil(dateStr){ return Math.ceil((new Date(dateStr)-new Date(today()))/(86400000)); }
