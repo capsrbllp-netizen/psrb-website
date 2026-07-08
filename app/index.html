@@ -713,6 +713,7 @@ function doLogin(){
   if(!u){ err.style.display='block'; return; }
   err.style.display='none';
   DB.currentUser=u;
+  sessionStorage.setItem('psrb_session', JSON.stringify(u));
   save();
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').classList.add('active');
@@ -731,8 +732,9 @@ function doLogin(){
 }
 function doLogout(){
   logActivity('Signed out');
-  save();
   DB.currentUser=null;
+  save();
+  sessionStorage.removeItem('psrb_session');
   document.getElementById('app').classList.remove('active');
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('login-pass').value='';
@@ -961,9 +963,9 @@ document.querySelectorAll('.modal-overlay').forEach(function(el){
 
 // ── INIT ──
 load();
-// Auto-login if session stored
-if(DB.currentUser){
-  var u=DB.currentUser;
+// Restore session only from sessionStorage (clears when browser tab closes)
+var _sess = sessionStorage.getItem('psrb_session');
+if(_sess){ try{ var u=JSON.parse(_sess); DB.currentUser=u;
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').classList.add('active');
   var ini=u.initials||(u.name?u.name.split(' ').map(function(n){return n[0];}).join('').substring(0,2).toUpperCase():'??');
@@ -977,7 +979,7 @@ if(DB.currentUser){
   document.getElementById('pref-email').value=u.email||'';
   document.getElementById('topbar-date').textContent='— '+new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   refreshAll();
-}
+}catch(e){ sessionStorage.removeItem('psrb_session'); } }
 </script>
 </body>
 </html>
