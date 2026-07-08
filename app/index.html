@@ -671,25 +671,82 @@ tr:hover td{background:var(--cream);}
     <input type="hidden" id="task-edit-id">
     <div class="field"><label>Task Title *</label><input type="text" id="t-title" placeholder="e.g. Prepare GST Return for July"></div>
     <div class="field-row">
-      <div class="field"><label>Client</label><select id="t-client"><option value="">— Select Client —</option></select></div>
+      <div class="field"><label>Client</label><select id="t-client" onchange="checkTaskModalUI()"><option value="">— Select Client —</option></select></div>
       <div class="field"><label>Assigned To *</label><select id="t-assignee"><option value="">— Select Member —</option></select></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Priority</label><select id="t-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
-      <div class="field"><label>Status</label><select id="t-status"><option>Todo</option><option>In Progress</option><option>In Review</option><option>Partner Approval</option><option>Done</option></select></div>
+      <div class="field"><label>Status</label><select id="t-status" onchange="checkTaskModalUI()"><option>Todo</option><option>In Progress</option><option>In Review</option><option>Partner Approval</option><option>Done</option></select></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Due Date *</label><input type="date" id="t-due"></div>
       <div class="field"><label>Category</label><select id="t-category"><option>GST</option><option>Income Tax</option><option>Audit</option><option>Valuation</option><option>ROC/MCA</option><option>TDS</option><option>MSME</option><option>Banking</option><option>Advisory</option><option>Other</option></select></div>
     </div>
     <div class="field-row">
-      <div class="field"><label>Estimated Time (Hours)</label><input type="number" id="t-est" min="0.5" step="0.5" placeholder="e.g. 4"></div>
-      <div class="field"><label>Actual Time Taken (Hours)</label><input type="number" id="t-actual" min="0" step="0.5" placeholder="Fill on completion"></div>
+      <div class="field"><label>Estimated Time (Hours)</label><input type="number" id="t-est" min="0.5" step="0.5" placeholder="e.g. 4" oninput="checkTaskModalUI()"></div>
+      <div class="field"><label>Actual Time Taken (Hours)</label><input type="number" id="t-actual" min="0" step="0.5" placeholder="Fill on completion" oninput="checkTaskModalUI()"></div>
+    </div>
+    <div class="field" id="t-overtime-row" style="display:none;">
+      <label>⚠ Overtime Justification (required — actual time exceeds estimate)</label>
+      <textarea id="t-overtime" placeholder="Why did this task take longer than estimated?"></textarea>
     </div>
     <div class="field"><label>Notes</label><textarea id="t-notes" placeholder="Additional details..."></textarea></div>
+    <div class="field" id="t-invoice-row" style="display:none;">
+      <label>💰 Invoice Amount (₹) — task is being marked Complete</label>
+      <input type="number" id="t-invoice" min="0" step="1" placeholder="Amount to bill client">
+    </div>
+    <input type="hidden" id="task-was-done">
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-task')">Cancel</button>
       <button class="btn btn-primary" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-task-complete">
+  <div class="modal" style="width:460px;">
+    <div class="modal-title">✓ Complete Task</div>
+    <input type="hidden" id="ctc-task-id">
+    <div class="field"><label>Task</label><div id="ctc-task-title" style="font-weight:600;padding:8px 0;"></div></div>
+    <div class="field"><label>Estimated Time</label><div id="ctc-est-display" style="color:var(--muted);padding:4px 0 8px;"></div></div>
+    <div class="field"><label>Actual Time Taken (Hours) *</label><input type="number" id="ctc-actual" min="0" step="0.5" oninput="checkCompleteOvertimeUI()"></div>
+    <div class="field" id="ctc-overtime-row" style="display:none;">
+      <label>⚠ Overtime Justification (required — actual time exceeds estimate)</label>
+      <textarea id="ctc-overtime" placeholder="Why did this task take longer than estimated?"></textarea>
+    </div>
+    <div class="field" id="ctc-invoice-row" style="display:none;">
+      <label>💰 Invoice Amount (₹)</label>
+      <input type="number" id="ctc-invoice" min="0" step="1" placeholder="Amount to bill client">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-task-complete')">Cancel</button>
+      <button class="btn btn-primary" id="ctc-confirm-btn" onclick="confirmCompleteTask()">Complete</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-return-task">
+  <div class="modal" style="width:440px;">
+    <div class="modal-title">↩ Return Task for Rework</div>
+    <input type="hidden" id="rt-task-id">
+    <div class="field"><label>Task</label><div id="rt-task-title" style="font-weight:600;padding:8px 0;"></div></div>
+    <div class="field"><label>What needs to be corrected? *</label><textarea id="rt-reason" placeholder="Explain what the staff member needs to fix..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-return-task')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmReturnTask()">Return to Staff</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-approve-bill">
+  <div class="modal" style="width:440px;">
+    <div class="modal-title">✓ Final Approval &amp; Billing</div>
+    <input type="hidden" id="apb-task-id">
+    <div class="field"><label>Task</label><div id="apb-task-title" style="font-weight:600;padding:8px 0;"></div></div>
+    <div class="field"><label>Invoice Amount (₹)</label><input type="number" id="apb-amount" min="0" step="1" placeholder="Amount to bill client"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-approve-bill')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmApproveBill()">Approve &amp; Bill</button>
     </div>
   </div>
 </div>
@@ -1186,7 +1243,7 @@ function renderTasks(){
               '<button class="btn btn-sm btn-gold" onclick="openTransfer('+t.id+')" title="Transfer">⇄</button>'+
               '<button class="btn btn-sm btn-danger" onclick="deleteTask('+t.id+')">Del</button>';
     } else if(isMyTask&&t.status!=='In Review'&&t.status!=='Partner Approval'&&t.status!=='Done'){
-      actions+='<select onchange="quickStatusUpdate('+t.id+',this.value)" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;">'+
+      actions+='<select onchange="handleQuickStatus(this,'+t.id+')" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;">'+
               '<option value="">Update Status</option>'+
               '<option value="Todo"'+(t.status==='Todo'?' selected':'')+'>Todo</option>'+
               '<option value="In Progress"'+(t.status==='In Progress'?' selected':'')+'>In Progress</option>'+
@@ -1211,26 +1268,6 @@ function renderTasks(){
   updateBadges();
 }
 // Time tracking: on completion, capture actual hours; overtime needs a written justification
-function captureTimeOnDone(t){
-  var est=+t.estHours||0;
-  var actualStr=prompt('Task completed: "'+t.title+'"\n\nEstimated time: '+(est?est+' hrs':'not set')+'\nHow many hours did this task actually take?', t.actualHours||est||'');
-  if(actualStr===null) return false; // cancelled
-  var actual=parseFloat(actualStr);
-  if(isNaN(actual)||actual<0){ alert('Please enter a valid number of hours.'); return false; }
-  t.actualHours=actual;
-  if(est&&actual>est){
-    var reason='';
-    while(!reason){
-      reason=prompt('⚠ OVERTIME: This task took '+actual+' hrs against an estimate of '+est+' hrs ('+(actual-est).toFixed(1)+' hrs over).\n\nJustification is required — why did it take longer?');
-      if(reason===null) return false; // cancelled
-      reason=reason.trim();
-      if(!reason) alert('Justification cannot be empty for overtime.');
-    }
-    t.overtimeReason=reason;
-    logActivity('OVERTIME on "'+t.title+'": '+actual+'h vs '+est+'h est. Reason: '+reason);
-  }
-  return true;
-}
 function notify(to,msg){ if(!to)return; if(!DB.notifications)DB.notifications=[]; DB.notifications.push({id:Date.now()+Math.floor(Math.random()*10000),to:to,msg:msg,ts:new Date().toISOString(),read:false}); }
 function seniorOf(name){
   var m=(DB.team||[]).find(function(x){return x.name===name;});
@@ -1238,36 +1275,88 @@ function seniorOf(name){
   var p=(DB.team||[]).find(function(x){return x.role&&(x.role.toLowerCase().includes('partner')||x.role.toLowerCase().includes('managing'));});
   return p?p.name:'';
 }
+function billTask(t, amt){
+  if(!t.client||!amt||amt<=0) return;
+  DB.billing.push({id:DB.nextId.billing++,client:t.client,service:t.title,amount:amt,date:today(),due:'',status:'Pending',notes:'Auto-billed on task completion ('+(t.assignee||'')+')'});
+  logActivity('Auto-billed ₹'+amt.toLocaleString('en-IN')+' to '+t.client+' for "'+t.title+'"');
+}
+// Plain status changes (Todo / In Progress) — no time tracking involved. "Done" is handled by the Complete Task modal.
 function quickStatusUpdate(taskId, newStatus){
   if(!newStatus) return;
   var t=DB.tasks.find(function(x){return x.id===taskId;});
   if(!t) return;
   var me=DB.currentUser?DB.currentUser.name:'';
   if(!isPartner()&&t.assignee!==me){ toast('You can only update your own tasks.','error'); return; }
-  if(newStatus==='Done'&&t.status!=='Done'){
-    if(!captureTimeOnDone(t)){ renderTasks(); return; }
-    if(isPartner()){
-      // Partner completing directly: finish and bill immediately
-      t.status='Done'; t.completedAt=new Date().toISOString();
-      logActivity('Completed task: "'+t.title+'"');
-      autoBillTask(t);
-      save(); renderTasks(); renderDashboard();
-      toast('Task completed and billed!','success');
-      return;
-    }
-    // Staff completing: send to senior for review
-    var senior=seniorOf(me);
-    t.status='In Review'; t.reviewer=senior; t.submittedAt=new Date().toISOString();
-    notify(senior,'Review needed: '+me+' has completed "'+t.title+'"'+(t.client?' for '+t.client:'')+' — please review and forward to Partner.');
-    logActivity('Submitted "'+t.title+'" for review to '+senior);
-    save(); renderTasks(); renderDashboard();
-    toast('Sent to '+(senior||'senior')+' for review.','success');
-    return;
-  }
   t.status=newStatus;
   logActivity('Updated status: "'+t.title+'" → '+newStatus);
   save(); renderTasks(); renderDashboard();
   toast('Status updated to '+newStatus+'!','success');
+}
+function handleQuickStatus(sel, taskId){
+  var val=sel.value;
+  if(!val) return;
+  if(val==='Done'){ sel.value=''; openCompleteModal(taskId); return; }
+  quickStatusUpdate(taskId, val);
+}
+// ── COMPLETE TASK (inline modal — no browser dialogs) ──
+function openCompleteModal(taskId){
+  var t=DB.tasks.find(function(x){return x.id===taskId;}); if(!t) return;
+  var me=DB.currentUser?DB.currentUser.name:'';
+  if(!isPartner()&&t.assignee!==me){ toast('You can only complete your own tasks.','error'); return; }
+  document.getElementById('ctc-task-id').value=taskId;
+  document.getElementById('ctc-task-title').textContent=t.title+(t.client?' — '+t.client:'');
+  document.getElementById('ctc-est-display').textContent=t.estHours?t.estHours+' hrs':'Not set';
+  document.getElementById('ctc-actual').value=t.actualHours||t.estHours||'';
+  document.getElementById('ctc-overtime').value=t.overtimeReason||'';
+  var partner=isPartner();
+  var invRow=document.getElementById('ctc-invoice-row');
+  if(partner){
+    invRow.style.display='';
+    var c=(DB.clients||[]).find(function(x){return x.name===t.client;});
+    document.getElementById('ctc-invoice').value=c&&c.fee?parseFloat(c.fee):'';
+  } else {
+    invRow.style.display='none';
+  }
+  document.getElementById('ctc-confirm-btn').textContent=partner?'Complete & Bill':'Send for Review';
+  checkCompleteOvertimeUI();
+  document.getElementById('modal-task-complete').classList.add('open');
+}
+function checkCompleteOvertimeUI(){
+  var taskId=+document.getElementById('ctc-task-id').value;
+  var t=DB.tasks.find(function(x){return x.id===taskId;}); if(!t) return;
+  var est=+t.estHours||0;
+  var act=parseFloat(document.getElementById('ctc-actual').value)||0;
+  document.getElementById('ctc-overtime-row').style.display=(est&&act>est)?'':'none';
+}
+function confirmCompleteTask(){
+  var taskId=+document.getElementById('ctc-task-id').value;
+  var t=DB.tasks.find(function(x){return x.id===taskId;}); if(!t) return;
+  var actual=parseFloat(document.getElementById('ctc-actual').value);
+  if(isNaN(actual)||actual<0){ alert('Please enter a valid number of hours.'); return; }
+  var est=+t.estHours||0;
+  var overtimeReason=document.getElementById('ctc-overtime').value.trim();
+  if(est&&actual>est&&!overtimeReason){ alert('This task took longer than estimated — please fill in the Overtime Justification field.'); return; }
+  t.actualHours=actual;
+  var me=DB.currentUser?DB.currentUser.name:'';
+  if(est&&actual>est){
+    t.overtimeReason=overtimeReason;
+    logActivity('OVERTIME on "'+t.title+'": '+actual+'h vs '+est+'h est. Reason: '+overtimeReason);
+  }
+  if(isPartner()){
+    var amt=parseFloat(document.getElementById('ctc-invoice').value)||0;
+    t.status='Done'; t.completedAt=new Date().toISOString(); t.approvedBy=me;
+    logActivity('Completed task: "'+t.title+'"');
+    billTask(t, amt);
+    save(); closeModal('modal-task-complete'); renderTasks(); renderDashboard();
+    toast('Task completed'+(amt?' and billed!':'!'),'success');
+  } else {
+    var senior=seniorOf(me);
+    t.status='In Review'; t.reviewer=senior; t.submittedAt=new Date().toISOString();
+    notify(senior,'Review needed: '+me+' has completed "'+t.title+'"'+(t.client?' for '+t.client:'')+' — please review and forward to Partner.');
+    logActivity('Submitted "'+t.title+'" for review to '+senior);
+    save(); closeModal('modal-task-complete'); renderTasks(); renderDashboard();
+    toast('Sent to '+(senior||'senior')+' for review.','success');
+  }
 }
 function approveReview(taskId){
   var t=DB.tasks.find(function(x){return x.id===taskId;}); if(!t) return;
@@ -1287,55 +1376,114 @@ function approveReview(taskId){
 }
 function returnTask(taskId){
   var t=DB.tasks.find(function(x){return x.id===taskId;}); if(!t) return;
-  var reason=prompt('Return "'+t.title+'" to '+t.assignee+' for rework.\n\nWhat needs to be corrected?');
-  if(reason===null) return; reason=(reason||'').trim();
+  document.getElementById('rt-task-id').value=taskId;
+  document.getElementById('rt-task-title').textContent=t.title+' → back to '+(t.assignee||'');
+  document.getElementById('rt-reason').value='';
+  document.getElementById('modal-return-task').classList.add('open');
+}
+function confirmReturnTask(){
+  var taskId=+document.getElementById('rt-task-id').value;
+  var t=DB.tasks.find(function(x){return x.id===taskId;}); if(!t) return;
+  var reason=document.getElementById('rt-reason').value.trim();
   if(!reason){ alert('Please state what needs correction.'); return; }
   var me=DB.currentUser?DB.currentUser.name:'';
   t.status='In Progress'; t.reviewer='';
   notify(t.assignee,'Task returned for rework: "'+t.title+'" — '+me+' says: '+reason);
   logActivity('Returned "'+t.title+'" to '+t.assignee+' for rework: '+reason);
-  save(); renderTasks(); renderDashboard();
+  save(); closeModal('modal-return-task'); renderTasks(); renderDashboard();
   toast('Returned to '+t.assignee+'.');
 }
 function approveAndBill(taskId){
   if(!isPartner()){ toast('Only Partners can give final approval.','error'); return; }
   var t=DB.tasks.find(function(x){return x.id===taskId;}); if(!t) return;
+  document.getElementById('apb-task-id').value=taskId;
+  document.getElementById('apb-task-title').textContent=t.title+(t.client?' — '+t.client:'');
+  var c=(DB.clients||[]).find(function(x){return x.name===t.client;});
+  document.getElementById('apb-amount').value=c&&c.fee?parseFloat(c.fee):'';
+  document.getElementById('modal-approve-bill').classList.add('open');
+}
+function confirmApproveBill(){
+  var taskId=+document.getElementById('apb-task-id').value;
+  var t=DB.tasks.find(function(x){return x.id===taskId;}); if(!t) return;
+  var amt=parseFloat(document.getElementById('apb-amount').value)||0;
   t.status='Done'; t.completedAt=new Date().toISOString();
   var me=DB.currentUser?DB.currentUser.name:'';
   t.approvedBy=me;
   notify(t.assignee,'✅ Task "'+t.title+'" received final Partner approval — well done!');
   logActivity('Partner-approved & completed: "'+t.title+'"');
-  autoBillTask(t);
-  save(); renderTasks(); renderDashboard();
-  toast('Task approved, completed and billed!','success');
+  billTask(t, amt);
+  save(); closeModal('modal-approve-bill'); renderTasks(); renderDashboard();
+  toast('Task approved, completed'+(amt?' and billed!':'!'),'success');
 }
-function autoBillTask(t){
-  if(!t.client){ toast('Task completed (no client — nothing to bill).'); return; }
-  var c=(DB.clients||[]).find(function(x){return x.name===t.client;});
-  var amt=c&&c.fee?parseFloat(c.fee):0;
-  var s=prompt('Raise invoice for completed task:\n"'+t.title+'" — '+t.client+'\n\nInvoice amount (₹):', amt||'');
-  if(s===null){ logActivity('Billing skipped for "'+t.title+'"'); return; }
-  amt=parseFloat(s)||0;
-  if(!amt){ toast('No invoice raised (zero amount).'); return; }
-  DB.billing.push({id:DB.nextId.billing++,client:t.client,service:t.title,amount:amt,date:today(),due:'',status:'Pending',notes:'Auto-billed on task completion ('+(t.assignee||'')+')'});
-  logActivity('Auto-billed ₹'+amt.toLocaleString('en-IN')+' to '+t.client+' for "'+t.title+'"');
-}
-function openTaskModal(){ populateDropdowns(); document.getElementById('task-edit-id').value=''; document.getElementById('task-modal-title').textContent='New Task'; ['t-title','t-notes','t-est','t-actual'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('t-due').value=today(); document.getElementById('modal-task').classList.add('open'); }
-function editTask(id){ populateDropdowns(); var t=DB.tasks.find(function(x){return x.id===id;}); if(!t)return; document.getElementById('task-edit-id').value=id; document.getElementById('task-modal-title').textContent='Edit Task'; document.getElementById('t-title').value=t.title; document.getElementById('t-client').value=t.client||''; document.getElementById('t-assignee').value=t.assignee||''; document.getElementById('t-priority').value=t.priority; document.getElementById('t-status').value=t.status; document.getElementById('t-due').value=t.due; document.getElementById('t-category').value=t.category; document.getElementById('t-notes').value=t.notes||''; document.getElementById('t-est').value=t.estHours||''; document.getElementById('t-actual').value=t.actualHours||''; document.getElementById('modal-task').classList.add('open'); }
-function saveTask(){ var title=document.getElementById('t-title').value.trim(); if(!title){alert('Task title required.');return;} var eid=document.getElementById('task-edit-id').value; var task={title:title,client:document.getElementById('t-client').value,assignee:document.getElementById('t-assignee').value,priority:document.getElementById('t-priority').value,status:document.getElementById('t-status').value,due:document.getElementById('t-due').value,category:document.getElementById('t-category').value,notes:document.getElementById('t-notes').value,estHours:parseFloat(document.getElementById('t-est').value)||0,actualHours:parseFloat(document.getElementById('t-actual').value)||0};
-  if(eid){var idx=DB.tasks.findIndex(function(x){return x.id==eid;});if(idx>=0){var old=DB.tasks[idx];task.id=+eid;task.created=old.created;task.isRecurring=old.isRecurring;task.templateId=old.templateId;task.overtimeReason=old.overtimeReason;task.completedAt=old.completedAt;
-    task.assignedBy=old.assignedBy;task.reviewer=old.reviewer;task.reviewedBy=old.reviewedBy;task.approvalPartner=old.approvalPartner;
-    if(task.status==='Done'&&old.status!=='Done'){ if(!captureTimeOnDone(task)) return; task.completedAt=new Date().toISOString(); task.approvedBy=DB.currentUser?DB.currentUser.name:''; autoBillTask(task); }
-    else if(task.estHours&&task.actualHours&&task.actualHours>task.estHours&&!task.overtimeReason){
-      var reason=prompt('⚠ OVERTIME: Actual '+task.actualHours+'h exceeds estimate of '+task.estHours+'h.\n\nJustification is required:');
-      if(reason===null) return; reason=(reason||'').trim();
-      if(!reason){ alert('Justification cannot be empty for overtime.'); return; }
-      task.overtimeReason=reason;
-      logActivity('OVERTIME on "'+title+'": '+task.actualHours+'h vs '+task.estHours+'h est. Reason: '+reason);
+function checkTaskModalUI(){
+  var est=parseFloat(document.getElementById('t-est').value)||0;
+  var act=parseFloat(document.getElementById('t-actual').value)||0;
+  var status=document.getElementById('t-status').value;
+  var wasDone=document.getElementById('task-was-done').value==='1';
+  var otRow=document.getElementById('t-overtime-row');
+  if(otRow) otRow.style.display=(est&&act>est)?'':'none';
+  var invRow=document.getElementById('t-invoice-row');
+  if(invRow){
+    var show=(status==='Done'&&!wasDone&&isPartner());
+    invRow.style.display=show?'':'none';
+    if(show){
+      var invInput=document.getElementById('t-invoice');
+      if(invInput&&!invInput.value){
+        var client=document.getElementById('t-client').value;
+        var c=(DB.clients||[]).find(function(x){return x.name===client;});
+        if(c&&c.fee) invInput.value=c.fee;
+      }
     }
-    DB.tasks[idx]=task;logActivity('Updated task: '+title);}}
-  else{task.id=DB.nextId.task++;task.created=new Date().toISOString();task.assignedBy=DB.currentUser?DB.currentUser.name:'';DB.tasks.push(task);if(task.assignee&&task.assignee!==task.assignedBy)notify(task.assignee,'New task assigned to you: "'+title+'"'+(task.client?' for '+task.client:'')+(task.estHours?' (est. '+task.estHours+'h)':'')+' — due '+fmtDate(task.due));logActivity('Created task: '+title+(task.estHours?' (est. '+task.estHours+'h)':''));}
-  save();closeModal('modal-task');renderTasks();renderDashboard();toast('Task saved!','success'); }
+  }
+}
+function openTaskModal(){ populateDropdowns(); document.getElementById('task-edit-id').value=''; document.getElementById('task-modal-title').textContent='New Task'; ['t-title','t-notes','t-est','t-actual','t-overtime','t-invoice'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('t-due').value=today(); document.getElementById('task-was-done').value=''; document.getElementById('modal-task').classList.add('open'); checkTaskModalUI(); }
+function editTask(id){ populateDropdowns(); var t=DB.tasks.find(function(x){return x.id===id;}); if(!t)return; document.getElementById('task-edit-id').value=id; document.getElementById('task-modal-title').textContent='Edit Task'; document.getElementById('t-title').value=t.title; document.getElementById('t-client').value=t.client||''; document.getElementById('t-assignee').value=t.assignee||''; document.getElementById('t-priority').value=t.priority; document.getElementById('t-status').value=t.status; document.getElementById('t-due').value=t.due; document.getElementById('t-category').value=t.category; document.getElementById('t-notes').value=t.notes||''; document.getElementById('t-est').value=t.estHours||''; document.getElementById('t-actual').value=t.actualHours||''; document.getElementById('t-overtime').value=t.overtimeReason||''; document.getElementById('t-invoice').value=''; document.getElementById('task-was-done').value=(t.status==='Done'?'1':''); document.getElementById('modal-task').classList.add('open'); checkTaskModalUI(); }
+function saveTask(){
+  var title=document.getElementById('t-title').value.trim();
+  if(!title){alert('Task title required.');return;}
+  var eid=document.getElementById('task-edit-id').value;
+  var estHours=parseFloat(document.getElementById('t-est').value)||0;
+  var actualHours=parseFloat(document.getElementById('t-actual').value)||0;
+  var overtimeReason=document.getElementById('t-overtime').value.trim();
+  var isOvertime=!!(estHours&&actualHours&&actualHours>estHours);
+  if(isOvertime&&!overtimeReason){ alert('This task took longer than the estimate — please fill in the Overtime Justification field before saving.'); return; }
+  var status=document.getElementById('t-status').value;
+  var task={title:title,client:document.getElementById('t-client').value,assignee:document.getElementById('t-assignee').value,priority:document.getElementById('t-priority').value,status:status,due:document.getElementById('t-due').value,category:document.getElementById('t-category').value,notes:document.getElementById('t-notes').value,estHours:estHours,actualHours:actualHours,overtimeReason:isOvertime?overtimeReason:''};
+  var wasDone=document.getElementById('task-was-done').value==='1';
+  var me=DB.currentUser?DB.currentUser.name:'';
+  if(eid){
+    var idx=DB.tasks.findIndex(function(x){return x.id==eid;});
+    if(idx>=0){
+      var old=DB.tasks[idx];
+      task.id=+eid; task.created=old.created; task.isRecurring=old.isRecurring; task.templateId=old.templateId; task.completedAt=old.completedAt;
+      task.assignedBy=old.assignedBy; task.reviewer=old.reviewer; task.reviewedBy=old.reviewedBy; task.approvalPartner=old.approvalPartner; task.approvedBy=old.approvedBy; task.reviewedAt=old.reviewedAt; task.submittedAt=old.submittedAt;
+      var becomingDone=(status==='Done'&&!wasDone);
+      if(becomingDone){
+        if(isPartner()){
+          var invoiceAmt=parseFloat(document.getElementById('t-invoice').value)||0;
+          task.completedAt=new Date().toISOString(); task.approvedBy=me;
+          logActivity('Completed task: "'+title+'"');
+          billTask(task, invoiceAmt);
+        } else {
+          // Staff can't finalize directly — route to senior for review instead
+          var senior=seniorOf(me);
+          task.status='In Review'; task.reviewer=senior; task.submittedAt=new Date().toISOString();
+          notify(senior,'Review needed: '+me+' has completed "'+title+'"'+(task.client?' for '+task.client:'')+' — please review and forward to Partner.');
+          logActivity('Submitted "'+title+'" for review to '+senior);
+        }
+      } else if(isOvertime&&overtimeReason!==old.overtimeReason){
+        logActivity('OVERTIME on "'+title+'": '+actualHours+'h vs '+estHours+'h est. Reason: '+overtimeReason);
+      }
+      DB.tasks[idx]=task; logActivity('Updated task: '+title);
+    }
+  } else {
+    task.id=DB.nextId.task++; task.created=new Date().toISOString(); task.assignedBy=me;
+    DB.tasks.push(task);
+    if(task.assignee&&task.assignee!==task.assignedBy) notify(task.assignee,'New task assigned to you: "'+title+'"'+(task.client?' for '+task.client:'')+(task.estHours?' (est. '+task.estHours+'h)':'')+' — due '+fmtDate(task.due));
+    logActivity('Created task: '+title+(task.estHours?' (est. '+task.estHours+'h)':''));
+  }
+  save();closeModal('modal-task');renderTasks();renderDashboard();toast('Task saved!','success');
+}
 function deleteTask(id){ if(!confirm('Delete this task?'))return; var t=DB.tasks.find(function(x){return x.id===id;}); DB.tasks=DB.tasks.filter(function(x){return x.id!==id;}); logActivity('Deleted task: '+(t?t.title:'')); save();renderTasks();renderDashboard();toast('Task deleted.'); }
 
 // ── CLIENTS ──
