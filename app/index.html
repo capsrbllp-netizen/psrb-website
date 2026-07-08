@@ -304,11 +304,12 @@ tr:hover td{background:var(--cream);}
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
               <div class="card-title">All Tasks</div>
               <select id="task-filter-status" onchange="renderTasks()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;">
-                <option value="">All Status</option>
+                <option value="">Active (excl. Completed)</option>
                 <option value="Todo">Todo</option>
                 <option value="In Progress">In Progress</option>
-                <option value="In Review">In Review</option>
-                <option value="Done">Done</option>
+                <option value="In Review">Senior Review</option>
+                <option value="Partner Approval">Partner Approval</option>
+                <option value="Done">Completed & Billed</option>
               </select>
               <select id="task-filter-priority" onchange="renderTasks()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;">
                 <option value="">All Priority</option>
@@ -675,7 +676,7 @@ tr:hover td{background:var(--cream);}
     </div>
     <div class="field-row">
       <div class="field"><label>Priority</label><select id="t-priority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
-      <div class="field"><label>Status</label><select id="t-status"><option>Todo</option><option>In Progress</option><option>In Review</option><option>Done</option></select></div>
+      <div class="field"><label>Status</label><select id="t-status"><option>Todo</option><option>In Progress</option><option>In Review</option><option>Partner Approval</option><option>Done</option></select></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Due Date *</label><input type="date" id="t-due"></div>
@@ -1131,12 +1132,12 @@ function renderDashboard(){
 
   // Status chart
   var dc=document.getElementById('dash-status-chart');
-  var counts={Todo:0,'In Progress':0,'In Review':0,Done:0};
+  var counts={Todo:0,'In Progress':0,'In Review':0,'Partner Approval':0,Done:0};
   tasks.forEach(function(t){counts[t.status]=(counts[t.status]||0)+1;});
   var total=tasks.length||1;
   dc.innerHTML=Object.keys(counts).map(function(k){
     var pct=Math.round(counts[k]/total*100);
-    var clr={Todo:'#718096','In Progress':'#3182ce','In Review':'#D69E2E',Done:'#38a169'}[k];
+    var clr={Todo:'#718096','In Progress':'#3182ce','In Review':'#D69E2E','Partner Approval':'#805ad5',Done:'#38a169'}[k];
     return '<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>'+k+'</span><span style="font-weight:700;">'+counts[k]+'</span></div><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;background:'+clr+';"></div></div></div>';
   }).join('');
 }
@@ -1157,6 +1158,7 @@ function renderTasks(){
   // Filter tasks
   var data=(DB.tasks||[]).filter(function(t){
     if(!canSeeAll && t.assignee!==me) return false;
+    if(!fs&&t.status==='Done') return false; // completed tasks live in Billing; view via "Completed & Billed" filter
     return (!fs||t.status===fs)&&(!fp||t.priority===fp);
   });
 
@@ -1169,17 +1171,29 @@ function renderTasks(){
   tbody.innerHTML=data.sort(function(a,b){return new Date(a.due)-new Date(b.due);}).map(function(t){
     var days=daysUntil(t.due);
     var isMyTask=(t.assignee===me);
-    // Actions: partners get full control; staff get status-update only on their own tasks
+    // Actions per workflow stage: Staff completes → Senior reviews → Partner approves & bills
     var actions='';
+    var isReviewer=(t.reviewer===me)||(isSeniorManager()&&!partner);
+    if(t.status==='In Review'&&(partner||isReviewer)&&!isMyTask){
+      actions+='<button class="btn btn-sm btn-gold" onclick="approveReview('+t.id+')" title="Approve and send to Partner">✓ To Partner</button>'+
+               '<button class="btn btn-sm btn-outline" onclick="returnTask('+t.id+')" title="Return to staff for rework">↩</button> ';
+    }
+    if(t.status==='Partner Approval'&&partner){
+      actions+='<button class="btn btn-sm btn-gold" onclick="approveAndBill('+t.id+')" title="Final approval — completes the task and raises the invoice">✓ Approve & Bill</button> ';
+    }
     if(partner){
-      actions='<button class="btn btn-sm btn-outline" onclick="editTask('+t.id+')">Edit</button>'+
+      actions+='<button class="btn btn-sm btn-outline" onclick="editTask('+t.id+')">Edit</button>'+
               '<button class="btn btn-sm btn-gold" onclick="openTransfer('+t.id+')" title="Transfer">⇄</button>'+
               '<button class="btn btn-sm btn-danger" onclick="deleteTask('+t.id+')">Del</button>';
-    } else if(isMyTask){
-      actions='<select onchange="quickStatusUpdate('+t.id+',this.value)" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;">'+
+    } else if(isMyTask&&t.status!=='In Review'&&t.status!=='Partner Approval'&&t.status!=='Done'){
+      actions+='<select onchange="quickStatusUpdate('+t.id+',this.value)" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;">'+
               '<option value="">Update Status</option>'+
-              ['Todo','In Progress','In Review','Done'].map(function(s){return '<option value="'+s+'"'+(t.status===s?' selected':'')+'>'+s+'</option>';}).join('')+
+              '<option value="Todo"'+(t.status==='Todo'?' selected':'')+'>Todo</option>'+
+              '<option value="In Progress"'+(t.status==='In Progress'?' selected':'')+'>In Progress</option>'+
+              '<option value="Done">✓ Complete → Send for Review</option>'+
               '</select>';
+    } else if(isMyTask&&(t.status==='In Review'||t.status==='Partner Approval')){
+      actions+='<span style="font-size:11px;color:var(--muted);font-style:italic;">'+(t.status==='In Review'?'With '+esc(t.reviewer||'senior')+' for review':'Awaiting Partner approval')+'</span>';
     }
     var timeInfo='';
     if(t.estHours||t.actualHours){
@@ -1217,6 +1231,13 @@ function captureTimeOnDone(t){
   }
   return true;
 }
+function notify(to,msg){ if(!to)return; if(!DB.notifications)DB.notifications=[]; DB.notifications.push({id:Date.now()+Math.floor(Math.random()*10000),to:to,msg:msg,ts:new Date().toISOString(),read:false}); }
+function seniorOf(name){
+  var m=(DB.team||[]).find(function(x){return x.name===name;});
+  if(m&&m.reportsTo) return m.reportsTo;
+  var p=(DB.team||[]).find(function(x){return x.role&&(x.role.toLowerCase().includes('partner')||x.role.toLowerCase().includes('managing'));});
+  return p?p.name:'';
+}
 function quickStatusUpdate(taskId, newStatus){
   if(!newStatus) return;
   var t=DB.tasks.find(function(x){return x.id===taskId;});
@@ -1225,18 +1246,86 @@ function quickStatusUpdate(taskId, newStatus){
   if(!isPartner()&&t.assignee!==me){ toast('You can only update your own tasks.','error'); return; }
   if(newStatus==='Done'&&t.status!=='Done'){
     if(!captureTimeOnDone(t)){ renderTasks(); return; }
-    t.completedAt=new Date().toISOString();
+    if(isPartner()){
+      // Partner completing directly: finish and bill immediately
+      t.status='Done'; t.completedAt=new Date().toISOString();
+      logActivity('Completed task: "'+t.title+'"');
+      autoBillTask(t);
+      save(); renderTasks(); renderDashboard();
+      toast('Task completed and billed!','success');
+      return;
+    }
+    // Staff completing: send to senior for review
+    var senior=seniorOf(me);
+    t.status='In Review'; t.reviewer=senior; t.submittedAt=new Date().toISOString();
+    notify(senior,'Review needed: '+me+' has completed "'+t.title+'"'+(t.client?' for '+t.client:'')+' — please review and forward to Partner.');
+    logActivity('Submitted "'+t.title+'" for review to '+senior);
+    save(); renderTasks(); renderDashboard();
+    toast('Sent to '+(senior||'senior')+' for review.','success');
+    return;
   }
   t.status=newStatus;
   logActivity('Updated status: "'+t.title+'" → '+newStatus);
   save(); renderTasks(); renderDashboard();
   toast('Status updated to '+newStatus+'!','success');
 }
+function approveReview(taskId){
+  var t=DB.tasks.find(function(x){return x.id===taskId;}); if(!t) return;
+  var me=DB.currentUser?DB.currentUser.name:'';
+  if(!isPartner()&&!isSeniorManager()&&t.reviewer!==me){ toast('Only the assigned reviewer can approve.','error'); return; }
+  // Route to the partner who assigned the task, else any partner
+  var partnerName='';
+  var assigner=(DB.team||[]).find(function(x){return x.name===t.assignedBy;});
+  if(assigner&&assigner.role&&(assigner.role.toLowerCase().includes('partner')||assigner.role.toLowerCase().includes('managing'))) partnerName=assigner.name;
+  if(!partnerName){ var p=(DB.team||[]).find(function(x){return x.role&&(x.role.toLowerCase().includes('partner')||x.role.toLowerCase().includes('managing'));}); partnerName=p?p.name:''; }
+  t.status='Partner Approval'; t.reviewedBy=me; t.reviewedAt=new Date().toISOString(); t.approvalPartner=partnerName;
+  notify(partnerName,'Approval needed: "'+t.title+'"'+(t.client?' for '+t.client:'')+' completed by '+esc(t.assignee)+', reviewed by '+me+'. Approve to complete & bill.');
+  notify(t.assignee,'Your task "'+t.title+'" passed senior review and is with '+partnerName+' for final approval.');
+  logActivity('Review approved: "'+t.title+'" → sent to '+partnerName+' for final approval');
+  save(); renderTasks(); renderDashboard();
+  toast('Approved — sent to '+(partnerName||'Partner')+' for final sign-off.','success');
+}
+function returnTask(taskId){
+  var t=DB.tasks.find(function(x){return x.id===taskId;}); if(!t) return;
+  var reason=prompt('Return "'+t.title+'" to '+t.assignee+' for rework.\n\nWhat needs to be corrected?');
+  if(reason===null) return; reason=(reason||'').trim();
+  if(!reason){ alert('Please state what needs correction.'); return; }
+  var me=DB.currentUser?DB.currentUser.name:'';
+  t.status='In Progress'; t.reviewer='';
+  notify(t.assignee,'Task returned for rework: "'+t.title+'" — '+me+' says: '+reason);
+  logActivity('Returned "'+t.title+'" to '+t.assignee+' for rework: '+reason);
+  save(); renderTasks(); renderDashboard();
+  toast('Returned to '+t.assignee+'.');
+}
+function approveAndBill(taskId){
+  if(!isPartner()){ toast('Only Partners can give final approval.','error'); return; }
+  var t=DB.tasks.find(function(x){return x.id===taskId;}); if(!t) return;
+  t.status='Done'; t.completedAt=new Date().toISOString();
+  var me=DB.currentUser?DB.currentUser.name:'';
+  t.approvedBy=me;
+  notify(t.assignee,'✅ Task "'+t.title+'" received final Partner approval — well done!');
+  logActivity('Partner-approved & completed: "'+t.title+'"');
+  autoBillTask(t);
+  save(); renderTasks(); renderDashboard();
+  toast('Task approved, completed and billed!','success');
+}
+function autoBillTask(t){
+  if(!t.client){ toast('Task completed (no client — nothing to bill).'); return; }
+  var c=(DB.clients||[]).find(function(x){return x.name===t.client;});
+  var amt=c&&c.fee?parseFloat(c.fee):0;
+  var s=prompt('Raise invoice for completed task:\n"'+t.title+'" — '+t.client+'\n\nInvoice amount (₹):', amt||'');
+  if(s===null){ logActivity('Billing skipped for "'+t.title+'"'); return; }
+  amt=parseFloat(s)||0;
+  if(!amt){ toast('No invoice raised (zero amount).'); return; }
+  DB.billing.push({id:DB.nextId.billing++,client:t.client,service:t.title,amount:amt,date:today(),due:'',status:'Pending',notes:'Auto-billed on task completion ('+(t.assignee||'')+')'});
+  logActivity('Auto-billed ₹'+amt.toLocaleString('en-IN')+' to '+t.client+' for "'+t.title+'"');
+}
 function openTaskModal(){ populateDropdowns(); document.getElementById('task-edit-id').value=''; document.getElementById('task-modal-title').textContent='New Task'; ['t-title','t-notes','t-est','t-actual'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('t-due').value=today(); document.getElementById('modal-task').classList.add('open'); }
 function editTask(id){ populateDropdowns(); var t=DB.tasks.find(function(x){return x.id===id;}); if(!t)return; document.getElementById('task-edit-id').value=id; document.getElementById('task-modal-title').textContent='Edit Task'; document.getElementById('t-title').value=t.title; document.getElementById('t-client').value=t.client||''; document.getElementById('t-assignee').value=t.assignee||''; document.getElementById('t-priority').value=t.priority; document.getElementById('t-status').value=t.status; document.getElementById('t-due').value=t.due; document.getElementById('t-category').value=t.category; document.getElementById('t-notes').value=t.notes||''; document.getElementById('t-est').value=t.estHours||''; document.getElementById('t-actual').value=t.actualHours||''; document.getElementById('modal-task').classList.add('open'); }
 function saveTask(){ var title=document.getElementById('t-title').value.trim(); if(!title){alert('Task title required.');return;} var eid=document.getElementById('task-edit-id').value; var task={title:title,client:document.getElementById('t-client').value,assignee:document.getElementById('t-assignee').value,priority:document.getElementById('t-priority').value,status:document.getElementById('t-status').value,due:document.getElementById('t-due').value,category:document.getElementById('t-category').value,notes:document.getElementById('t-notes').value,estHours:parseFloat(document.getElementById('t-est').value)||0,actualHours:parseFloat(document.getElementById('t-actual').value)||0};
   if(eid){var idx=DB.tasks.findIndex(function(x){return x.id==eid;});if(idx>=0){var old=DB.tasks[idx];task.id=+eid;task.created=old.created;task.isRecurring=old.isRecurring;task.templateId=old.templateId;task.overtimeReason=old.overtimeReason;task.completedAt=old.completedAt;
-    if(task.status==='Done'&&old.status!=='Done'){ if(!captureTimeOnDone(task)) return; task.completedAt=new Date().toISOString(); }
+    task.assignedBy=old.assignedBy;task.reviewer=old.reviewer;task.reviewedBy=old.reviewedBy;task.approvalPartner=old.approvalPartner;
+    if(task.status==='Done'&&old.status!=='Done'){ if(!captureTimeOnDone(task)) return; task.completedAt=new Date().toISOString(); task.approvedBy=DB.currentUser?DB.currentUser.name:''; autoBillTask(task); }
     else if(task.estHours&&task.actualHours&&task.actualHours>task.estHours&&!task.overtimeReason){
       var reason=prompt('⚠ OVERTIME: Actual '+task.actualHours+'h exceeds estimate of '+task.estHours+'h.\n\nJustification is required:');
       if(reason===null) return; reason=(reason||'').trim();
@@ -1245,7 +1334,7 @@ function saveTask(){ var title=document.getElementById('t-title').value.trim(); 
       logActivity('OVERTIME on "'+title+'": '+task.actualHours+'h vs '+task.estHours+'h est. Reason: '+reason);
     }
     DB.tasks[idx]=task;logActivity('Updated task: '+title);}}
-  else{task.id=DB.nextId.task++;task.created=new Date().toISOString();DB.tasks.push(task);logActivity('Created task: '+title+(task.estHours?' (est. '+task.estHours+'h)':''));}
+  else{task.id=DB.nextId.task++;task.created=new Date().toISOString();task.assignedBy=DB.currentUser?DB.currentUser.name:'';DB.tasks.push(task);if(task.assignee&&task.assignee!==task.assignedBy)notify(task.assignee,'New task assigned to you: "'+title+'"'+(task.client?' for '+task.client:'')+(task.estHours?' (est. '+task.estHours+'h)':'')+' — due '+fmtDate(task.due));logActivity('Created task: '+title+(task.estHours?' (est. '+task.estHours+'h)':''));}
   save();closeModal('modal-task');renderTasks();renderDashboard();toast('Task saved!','success'); }
 function deleteTask(id){ if(!confirm('Delete this task?'))return; var t=DB.tasks.find(function(x){return x.id===id;}); DB.tasks=DB.tasks.filter(function(x){return x.id!==id;}); logActivity('Deleted task: '+(t?t.title:'')); save();renderTasks();renderDashboard();toast('Task deleted.'); }
 
@@ -1410,7 +1499,7 @@ function populateDropdowns(){
 }
 function openQuickAdd(){ document.getElementById('modal-quickadd').classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
-function statusClass(s){ return {Todo:'todo','In Progress':'progress','In Review':'review',Done:'done'}[s]||'todo'; }
+function statusClass(s){ return {Todo:'todo','In Progress':'progress','In Review':'review','Partner Approval':'review',Done:'done'}[s]||'todo'; }
 function daysClass(d){ return d<0?'over':d<=7?'warn':'ok'; }
 function daysLabel(d){ if(d<0)return Math.abs(d)+'d overdue'; if(d===0)return 'Today!'; if(d===1)return 'Tomorrow'; return d+'d left'; }
 function fmtDate(s){ if(!s)return '—'; var d=new Date(s); return d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); }
@@ -1800,15 +1889,15 @@ function renderWorkChart(){
 
   cards.innerHTML=team.map(function(m,i){
     var myTasks=tasks.filter(function(t){return t.assignee===m.name;});
-    var counts={Todo:0,'In Progress':0,'In Review':0,Done:0};
+    var counts={Todo:0,'In Progress':0,'In Review':0,'Partner Approval':0,Done:0};
     myTasks.forEach(function(t){counts[t.status]=(counts[t.status]||0)+1;});
     var myOverdue=myTasks.filter(function(t){return t.status!=='Done'&&daysUntil(t.due)<0;}).length;
     var myActive=myTasks.filter(function(t){return t.status!=='Done';}).length;
     var total=myTasks.length||1;
     var color=avatarColors[i%avatarColors.length];
-    var bars=['Todo','In Progress','In Review','Done'].map(function(s){
+    var bars=['Todo','In Progress','In Review','Partner Approval','Done'].map(function(s){
       var pct=Math.round((counts[s]||0)/total*100);
-      var clr={Todo:'#718096','In Progress':'#3182ce','In Review':'#D69E2E',Done:'#38a169'}[s];
+      var clr={Todo:'#718096','In Progress':'#3182ce','In Review':'#D69E2E','Partner Approval':'#805ad5',Done:'#38a169'}[s];
       return '<div style="margin-bottom:10px;">'+
         '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:var(--muted);">'+s+'</span><span style="font-weight:700;color:var(--navy);">'+counts[s]+'</span></div>'+
         '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+clr+';border-radius:4px;transition:width .4s;"></div></div></div>';
