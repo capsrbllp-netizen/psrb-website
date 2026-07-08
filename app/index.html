@@ -750,6 +750,15 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 var fsdb = firebase.firestore();
 var FS_DOC = fsdb.collection('psrb_data').doc('main');
+
+// EmailJS default config
+var EMAILJS_DEFAULTS = {
+  serviceId: 'service_gl9b53q',
+  templateId: 'template_v9c8fii',
+  pubKey: 'nQmxLO_0DnLyoXNgC',
+  senderName: 'PSRB & Associates LLP'
+};
+emailjs.init(EMAILJS_DEFAULTS.pubKey);
 </script>
 
 <script>
@@ -1296,7 +1305,7 @@ function loadEmailConfigUI(){
 }
 
 function sendCompletionEmail(task){
-  var ec=DB.emailConfig||{};
+  var ec=Object.assign({},EMAILJS_DEFAULTS,DB.emailConfig||{});
   if(!ec.serviceId||!ec.templateId||!ec.pubKey){ return; }
   var client=DB.clients.find(function(c){return c.name===task.client;});
   var toEmail=client&&client.email?client.email:'';
@@ -1319,8 +1328,7 @@ function sendCompletionEmail(task){
 }
 
 function testEmail(){
-  var ec=DB.emailConfig||{};
-  if(!ec.serviceId||!ec.templateId||!ec.pubKey){ alert('Please fill in all EmailJS fields and save first.'); return; }
+  var ec=Object.assign({},EMAILJS_DEFAULTS,DB.emailConfig||{});
   emailjs.init(ec.pubKey);
   var params={
     to_email: DB.currentUser&&DB.currentUser.email?DB.currentUser.email:'ca.psrb.llp@gmail.com',
