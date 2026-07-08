@@ -234,6 +234,7 @@ tr:hover td{background:var(--cream);}
     <button class="nav-item" onclick="showView('tasks',this)"><span class="icon">✅</span> Tasks <span class="nav-badge" id="pending-badge">0</span></button>
     <button class="nav-item" onclick="showView('clients',this)"><span class="icon">👥</span> Clients</button>
     <button class="nav-item" onclick="showView('deadlines',this)"><span class="icon">📅</span> Deadlines <span class="nav-badge" id="overdue-badge" style="display:none">!</span></button>
+    <button class="nav-item" onclick="showView('workchart',this)"><span class="icon">📊</span> Work Chart</button>
     <div class="sidebar-section">Finance</div>
     <button class="nav-item" onclick="showView('billing',this)"><span class="icon">💰</span> Billing & Fees</button>
     <button class="nav-item" onclick="showView('documents',this)"><span class="icon">📁</span> Documents</button>
@@ -323,6 +324,34 @@ tr:hover td{background:var(--cream);}
             <table>
               <thead><tr><th>Task</th><th>Client</th><th>Assigned To</th><th>Priority</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="tasks-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- WORK CHART -->
+      <div class="view" id="view-workchart">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <div class="card-title">📊 Employee Work Distribution</div>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <select id="wc-filter" onchange="renderWorkChart()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;">
+                <option value="all">All Tasks</option>
+                <option value="active">Active Only</option>
+                <option value="overdue">Overdue Only</option>
+              </select>
+            </div>
+          </div>
+          <div id="wc-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;"></div>
+          <div id="wc-cards" style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">🔄 Task Transfer History</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Task</th><th>From</th><th>To</th><th>Date</th><th>Note</th></tr></thead>
+              <tbody id="transfer-history-tbody"></tbody>
             </table>
           </div>
         </div>
@@ -615,6 +644,37 @@ tr:hover td{background:var(--cream);}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-transfer">
+  <div class="modal" style="width:460px;">
+    <div class="modal-title">🔄 Transfer Task</div>
+    <input type="hidden" id="transfer-task-id">
+    <div class="field">
+      <label>Task</label>
+      <input type="text" id="transfer-task-name" readonly style="background:var(--cream);font-weight:600;">
+    </div>
+    <div class="field">
+      <label>Currently Assigned To</label>
+      <input type="text" id="transfer-from" readonly style="background:var(--cream);">
+    </div>
+    <div class="field">
+      <label>Transfer To *</label>
+      <select id="transfer-to"><option value="">— Select Member —</option></select>
+    </div>
+    <div class="field">
+      <label>New Status</label>
+      <select id="transfer-status"><option>Todo</option><option>In Progress</option><option>In Review</option><option>Done</option></select>
+    </div>
+    <div class="field">
+      <label>Reason / Note</label>
+      <textarea id="transfer-note" placeholder="Why is this task being transferred?"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-transfer')">Cancel</button>
+      <button class="btn btn-gold" onclick="doTransfer()">Transfer Task →</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-quickadd">
   <div class="modal" style="width:380px;">
     <div class="modal-title">Quick Add</div>
@@ -787,6 +847,7 @@ function showView(id, btn){
   if(id==='documents') renderDocs();
   if(id==='team') renderTeam();
   if(id==='dashboard') renderDashboard();
+  if(id==='workchart') renderWorkChart();
 }
 
 // ── REFRESH ALL ──
@@ -872,7 +933,7 @@ function renderTasks(){
     '<td><span class="priority-dot dot-'+t.priority.toLowerCase()+'"></span>'+t.priority+'</td>'+
     '<td>'+fmtDate(t.due)+'<br><span style="font-size:11px;" class="deadline-days days-'+daysClass(days)+'" style="padding:2px 6px;">'+daysLabel(days)+'</span></td>'+
     '<td><span class="badge badge-'+statusClass(t.status)+'">'+t.status+'</span></td>'+
-    '<td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editTask('+t.id+')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteTask('+t.id+')">Del</button></td></tr>';
+    '<td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editTask('+t.id+')">Edit</button><button class="btn btn-sm btn-gold" onclick="openTransfer('+t.id+')" title="Transfer to another member">⇄</button><button class="btn btn-sm btn-danger" onclick="deleteTask('+t.id+')">Del</button></td></tr>';
   }).join('');
   updateBadges();
 }
@@ -984,6 +1045,144 @@ function esc(s){ if(!s&&s!==0)return ''; return String(s).replace(/&/g,'&amp;').
 function logActivity(text){ if(!DB.activity)DB.activity=[]; var user=DB.currentUser?DB.currentUser.name:'System'; DB.activity.push({text:user+': '+text,ts:new Date().toISOString()}); if(DB.activity.length>100)DB.activity=DB.activity.slice(-100); }
 function toast(msg,type){ var el=document.getElementById('toast'); el.textContent=msg; el.className='toast '+(type||''); el.classList.add('show'); setTimeout(function(){el.classList.remove('show');},2500); }
 function globalSearch(q){ if(!q||q.length<2)return; /* simple highlight across visible view */ }
+
+// ── WORK CHART ──
+function renderWorkChart(){
+  var filter=document.getElementById('wc-filter').value;
+  var team=DB.team||[];
+  var allTasks=DB.tasks||[];
+  var tasks=allTasks.filter(function(t){
+    if(filter==='active') return t.status!=='Done';
+    if(filter==='overdue') return t.status!=='Done' && daysUntil(t.due)<0;
+    return true;
+  });
+
+  // Summary strip
+  var total=allTasks.length;
+  var done=allTasks.filter(function(t){return t.status==='Done';}).length;
+  var active=allTasks.filter(function(t){return t.status!=='Done';}).length;
+  var overdue=allTasks.filter(function(t){return t.status!=='Done'&&daysUntil(t.due)<0;}).length;
+  document.getElementById('wc-summary').innerHTML=[
+    {label:'Total Tasks',val:total,color:'var(--navy)'},
+    {label:'Completed',val:done,color:'var(--green)'},
+    {label:'Active',val:active,color:'var(--blue)'},
+    {label:'Overdue',val:overdue,color:'var(--red)'}
+  ].map(function(s){
+    return '<div style="background:var(--cream);border-radius:10px;padding:16px 20px;border:1px solid var(--border);">'+
+      '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">'+s.label+'</div>'+
+      '<div style="font-size:28px;font-weight:800;color:'+s.color+';">'+s.val+'</div></div>';
+  }).join('');
+
+  // Per-employee cards
+  var avatarColors=['#3182ce','#38a169','#805AD5','#DD6B20','#E53E3E','#319795'];
+  var cards=document.getElementById('wc-cards');
+  if(!team.length){ cards.innerHTML='<div class="empty-state"><div class="icon">🧑‍💼</div><p>No team members found.</p></div>'; return; }
+
+  cards.innerHTML=team.map(function(m,i){
+    var myTasks=tasks.filter(function(t){return t.assignee===m.name;});
+    var counts={Todo:0,'In Progress':0,'In Review':0,Done:0};
+    myTasks.forEach(function(t){counts[t.status]=(counts[t.status]||0)+1;});
+    var myOverdue=myTasks.filter(function(t){return t.status!=='Done'&&daysUntil(t.due)<0;}).length;
+    var myActive=myTasks.filter(function(t){return t.status!=='Done';}).length;
+    var total=myTasks.length||1;
+    var color=avatarColors[i%avatarColors.length];
+    var bars=['Todo','In Progress','In Review','Done'].map(function(s){
+      var pct=Math.round((counts[s]||0)/total*100);
+      var clr={Todo:'#718096','In Progress':'#3182ce','In Review':'#D69E2E',Done:'#38a169'}[s];
+      return '<div style="margin-bottom:10px;">'+
+        '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="color:var(--muted);">'+s+'</span><span style="font-weight:700;color:var(--navy);">'+counts[s]+'</span></div>'+
+        '<div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+clr+';border-radius:4px;transition:width .4s;"></div></div></div>';
+    }).join('');
+
+    var recentTasks=myTasks.filter(function(t){return t.status!=='Done';}).slice(0,3).map(function(t){
+      var days=daysUntil(t.due);
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);">'+
+        '<div style="font-size:13px;font-weight:500;color:var(--navy);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(t.title)+'</div>'+
+        '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;flex-shrink:0;" class="deadline-days days-'+daysClass(days)+'">'+daysLabel(days)+'</span>'+
+        '<button onclick="openTransfer('+t.id+')" style="margin-left:8px;background:var(--gold);color:#fff;border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;">⇄ Transfer</button></div>';
+    }).join('');
+
+    return '<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:22px;position:relative;">'+
+      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">'+
+        '<div style="width:52px;height:52px;border-radius:50%;background:'+color+';display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;">'+initials(m.name)+'</div>'+
+        '<div style="flex:1;">'+
+          '<div style="font-size:15px;font-weight:700;color:var(--navy);">'+esc(m.name)+'</div>'+
+          '<div style="font-size:12px;color:var(--muted);">'+esc(m.role)+'</div>'+
+        '</div>'+
+        '<div style="text-align:right;">'+
+          '<div style="font-size:24px;font-weight:800;color:var(--navy);">'+myTasks.length+'</div>'+
+          '<div style="font-size:11px;color:var(--muted);">tasks</div>'+
+        '</div>'+
+      '</div>'+
+      (myOverdue>0?'<div style="background:#FFF5F5;border:1px solid #FED7D7;border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px;font-weight:700;color:var(--red);">⚠️ '+myOverdue+' task'+(myOverdue>1?'s':'')+' overdue</div>':'')+
+      bars+
+      (recentTasks?'<div style="margin-top:14px;"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Active Tasks</div>'+recentTasks+'</div>':'')+
+      (!myActive?'<div style="text-align:center;padding:16px;color:var(--green);font-weight:700;font-size:13px;">🎉 All tasks completed!</div>':'')+
+    '</div>';
+  }).join('');
+
+  // Transfer history
+  renderTransferHistory();
+}
+
+function renderTransferHistory(){
+  var history=DB.transferHistory||[];
+  var tbody=document.getElementById('transfer-history-tbody');
+  if(!tbody) return;
+  if(!history.length){ tbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="icon">🔄</div><p>No transfers yet.</p></div></td></tr>'; return; }
+  tbody.innerHTML=history.slice().reverse().map(function(h){
+    return '<tr>'+
+      '<td><strong>'+esc(h.taskTitle)+'</strong></td>'+
+      '<td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar-sm a1">'+initials(h.from)+'</div>'+esc(h.from)+'</div></td>'+
+      '<td><div style="display:flex;align-items:center;gap:6px;"><div class="avatar-sm a2">'+initials(h.to)+'</div>'+esc(h.to)+'</div></td>'+
+      '<td>'+new Date(h.ts).toLocaleString('en-IN')+'</td>'+
+      '<td style="color:var(--muted);font-size:12px;">'+esc(h.note||'—')+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+// ── TASK TRANSFER ──
+function openTransfer(taskId){
+  var t=DB.tasks.find(function(x){return x.id===taskId;});
+  if(!t) return;
+  populateDropdowns();
+  document.getElementById('transfer-task-id').value=taskId;
+  document.getElementById('transfer-task-name').value=t.title;
+  document.getElementById('transfer-from').value=t.assignee||'Unassigned';
+  document.getElementById('transfer-status').value=t.status;
+  document.getElementById('transfer-to').value='';
+  document.getElementById('transfer-note').value='';
+  // Remove current assignee from transfer-to options
+  var sel=document.getElementById('transfer-to');
+  Array.from(sel.options).forEach(function(o){ o.disabled=(o.value===t.assignee); });
+  document.getElementById('modal-transfer').classList.add('open');
+}
+
+function doTransfer(){
+  var taskId=+document.getElementById('transfer-task-id').value;
+  var to=document.getElementById('transfer-to').value;
+  var note=document.getElementById('transfer-note').value.trim();
+  var newStatus=document.getElementById('transfer-status').value;
+  if(!to){ alert('Please select a team member to transfer to.'); return; }
+  var t=DB.tasks.find(function(x){return x.id===taskId;});
+  if(!t) return;
+  var from=t.assignee||'Unassigned';
+  // Record history
+  if(!DB.transferHistory) DB.transferHistory=[];
+  DB.transferHistory.push({taskId:taskId,taskTitle:t.title,from:from,to:to,note:note,ts:new Date().toISOString()});
+  // Update task
+  t.assignee=to;
+  t.status=newStatus;
+  if(!t.transferLog) t.transferLog=[];
+  t.transferLog.push({from:from,to:to,note:note,ts:new Date().toISOString()});
+  logActivity('Transferred "'+t.title+'" from '+from+' → '+to+(note?' ('+note+')':''));
+  save();
+  closeModal('modal-transfer');
+  renderTasks();
+  renderWorkChart();
+  renderDashboard();
+  toast('Task transferred to '+to+'!','success');
+}
 
 // Click outside modal to close
 document.querySelectorAll('.modal-overlay').forEach(function(el){
