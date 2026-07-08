@@ -521,17 +521,21 @@ tr:hover td{background:var(--cream);}
 
       <!-- TEAM -->
       <div class="view" id="view-team">
-        <div class="card">
+        <div class="card" style="margin-bottom:20px;">
           <div class="card-header">
             <div class="card-title">Team Members</div>
             <button class="btn btn-primary" onclick="openTeamModal()">+ Add Member</button>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Specialisation</th><th>Active Tasks</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Reports To</th><th>Specialisation</th><th>Active Tasks</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="team-tbody"></tbody>
             </table>
           </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">🏛️ Reporting Structure</div></div>
+          <div id="org-chart" style="padding:10px 0;"></div>
         </div>
       </div>
 
@@ -589,6 +593,10 @@ tr:hover td{background:var(--cream);}
             <button class="btn btn-sm btn-outline" onclick="filterTemplates('TDS')" id="tpl-btn-TDS">TDS</button>
           </div>
         </div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header"><div class="card-title">🗂️ Active Client Jobs (from Templates)</div></div>
+          <div id="tpl-jobs-list"></div>
+        </div>
         <div id="templates-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:18px;"></div>
       </div>
 
@@ -603,7 +611,56 @@ tr:hover td{background:var(--cream);}
   <div class="modal" style="width:680px;max-height:85vh;overflow-y:auto;">
     <div class="modal-title" id="tpl-modal-title">Template</div>
     <div id="tpl-modal-body"></div>
-    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-template')">Close</button></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-template')">Close</button>
+      <button class="btn btn-outline" id="tpl-edit-btn" onclick="openTemplateEdit()">✏️ Edit Template</button>
+      <button class="btn btn-gold" onclick="openTemplateJobNew()">▶ Use for Client</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-tpl-edit">
+  <div class="modal" style="width:680px;max-height:85vh;overflow-y:auto;">
+    <div class="modal-title">✏️ Edit Template</div>
+    <input type="hidden" id="tpe-id">
+    <div class="field"><label>Title *</label><input type="text" id="tpe-title"></div>
+    <div class="field-row">
+      <div class="field"><label>Category</label><select id="tpe-category"><option>Incorporation</option><option>GST</option><option>Income Tax</option><option>ROC</option><option>Audit</option><option>TDS</option></select></div>
+      <div class="field"><label>Difficulty</label><select id="tpe-difficulty"><option>Easy</option><option>Medium</option><option>High</option></select></div>
+    </div>
+    <div class="field"><label>Time Required</label><input type="text" id="tpe-time" placeholder="e.g. 10–15 working days"></div>
+    <div class="field"><label>Description</label><textarea id="tpe-desc" rows="2"></textarea></div>
+    <div class="field"><label>Documents Required (one per line)</label><textarea id="tpe-docs" rows="6" style="font-size:12px;"></textarea></div>
+    <div class="field"><label>Steps (one per line, format: Step Title :: Detailed explanation)</label><textarea id="tpe-steps" rows="10" style="font-size:12px;"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-tpl-edit')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTemplateEdit()">Save Template</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-tpl-job-new">
+  <div class="modal" style="width:440px;">
+    <div class="modal-title">▶ Start Template for a Client</div>
+    <input type="hidden" id="tpj-tpl-id">
+    <div class="field"><label>Template</label><input type="text" id="tpj-tpl-name" readonly style="background:var(--cream);font-weight:600;"></div>
+    <div class="field"><label>Client *</label><select id="tpj-client"><option value="">— Select Client —</option></select></div>
+    <div class="field"><label>Assigned To *</label><select id="tpj-assignee"><option value="">— Select Member —</option></select></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-tpl-job-new')">Cancel</button>
+      <button class="btn btn-gold" onclick="startTemplateJob()">Start Job →</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-tpl-job">
+  <div class="modal" style="width:680px;max-height:85vh;overflow-y:auto;">
+    <div class="modal-title" id="tpj-view-title">Client Job</div>
+    <div id="tpj-view-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" id="tpj-delete-btn" style="margin-right:auto;">Delete Job</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-tpl-job')">Close</button>
+    </div>
   </div>
 </div>
 
@@ -623,6 +680,10 @@ tr:hover td{background:var(--cream);}
     <div class="field-row">
       <div class="field"><label>Due Date *</label><input type="date" id="t-due"></div>
       <div class="field"><label>Category</label><select id="t-category"><option>GST</option><option>Income Tax</option><option>Audit</option><option>Valuation</option><option>ROC/MCA</option><option>TDS</option><option>MSME</option><option>Banking</option><option>Advisory</option><option>Other</option></select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Estimated Time (Hours)</label><input type="number" id="t-est" min="0.5" step="0.5" placeholder="e.g. 4"></div>
+      <div class="field"><label>Actual Time Taken (Hours)</label><input type="number" id="t-actual" min="0" step="0.5" placeholder="Fill on completion"></div>
     </div>
     <div class="field"><label>Notes</label><textarea id="t-notes" placeholder="Additional details..."></textarea></div>
     <div class="modal-footer">
@@ -756,7 +817,10 @@ tr:hover td{background:var(--cream);}
       <div class="field"><label>Email</label><input type="email" id="tm-email" placeholder="member@psrb.com"></div>
       <div class="field"><label>Phone</label><input type="text" id="tm-phone" placeholder="+91-XXXXXXXXXX"></div>
     </div>
-    <div class="field"><label>Specialisation</label><input type="text" id="tm-spec" placeholder="e.g. GST & Income Tax"></div>
+    <div class="field-row">
+      <div class="field"><label>Specialisation</label><input type="text" id="tm-spec" placeholder="e.g. GST & Income Tax"></div>
+      <div class="field"><label>Reports To</label><select id="tm-reports"><option value="">— None (Top Level) —</option></select></div>
+    </div>
     <div class="field"><label>System Password (for login)</label><input type="password" id="tm-pass" placeholder="Set login password"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-team')">Cancel</button>
@@ -1117,7 +1181,12 @@ function renderTasks(){
               ['Todo','In Progress','In Review','Done'].map(function(s){return '<option value="'+s+'"'+(t.status===s?' selected':'')+'>'+s+'</option>';}).join('')+
               '</select>';
     }
-    return '<tr><td><strong>'+esc(t.title)+'</strong><br><span style="font-size:11px;color:var(--muted);">'+esc(t.category)+'</span></td>'+
+    var timeInfo='';
+    if(t.estHours||t.actualHours){
+      var over=t.estHours&&t.actualHours&&t.actualHours>t.estHours;
+      timeInfo='<br><span style="font-size:11px;color:'+(over?'var(--red)':'var(--muted)')+';" '+(t.overtimeReason?'title="Overtime reason: '+esc(t.overtimeReason)+'"':'')+'>⏱ '+(t.estHours?'Est '+t.estHours+'h':'')+(t.actualHours?' · Actual '+t.actualHours+'h':'')+(over?' ⚠':'')+'</span>';
+    }
+    return '<tr><td><strong>'+esc(t.title)+'</strong><br><span style="font-size:11px;color:var(--muted);">'+esc(t.category)+'</span>'+timeInfo+'</td>'+
     '<td>'+esc(t.client||'—')+'</td>'+
     '<td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar-sm a1">'+initials(t.assignee)+'</div>'+esc(t.assignee||'—')+'</div></td>'+
     '<td><span class="priority-dot dot-'+t.priority.toLowerCase()+'"></span>'+t.priority+'</td>'+
@@ -1127,20 +1196,57 @@ function renderTasks(){
   }).join('');
   updateBadges();
 }
+// Time tracking: on completion, capture actual hours; overtime needs a written justification
+function captureTimeOnDone(t){
+  var est=+t.estHours||0;
+  var actualStr=prompt('Task completed: "'+t.title+'"\n\nEstimated time: '+(est?est+' hrs':'not set')+'\nHow many hours did this task actually take?', t.actualHours||est||'');
+  if(actualStr===null) return false; // cancelled
+  var actual=parseFloat(actualStr);
+  if(isNaN(actual)||actual<0){ alert('Please enter a valid number of hours.'); return false; }
+  t.actualHours=actual;
+  if(est&&actual>est){
+    var reason='';
+    while(!reason){
+      reason=prompt('⚠ OVERTIME: This task took '+actual+' hrs against an estimate of '+est+' hrs ('+(actual-est).toFixed(1)+' hrs over).\n\nJustification is required — why did it take longer?');
+      if(reason===null) return false; // cancelled
+      reason=reason.trim();
+      if(!reason) alert('Justification cannot be empty for overtime.');
+    }
+    t.overtimeReason=reason;
+    logActivity('OVERTIME on "'+t.title+'": '+actual+'h vs '+est+'h est. Reason: '+reason);
+  }
+  return true;
+}
 function quickStatusUpdate(taskId, newStatus){
   if(!newStatus) return;
   var t=DB.tasks.find(function(x){return x.id===taskId;});
   if(!t) return;
   var me=DB.currentUser?DB.currentUser.name:'';
   if(!isPartner()&&t.assignee!==me){ toast('You can only update your own tasks.','error'); return; }
-  var prev=t.status; t.status=newStatus;
+  if(newStatus==='Done'&&t.status!=='Done'){
+    if(!captureTimeOnDone(t)){ renderTasks(); return; }
+    t.completedAt=new Date().toISOString();
+  }
+  t.status=newStatus;
   logActivity('Updated status: "'+t.title+'" → '+newStatus);
   save(); renderTasks(); renderDashboard();
   toast('Status updated to '+newStatus+'!','success');
 }
-function openTaskModal(){ populateDropdowns(); document.getElementById('task-edit-id').value=''; document.getElementById('task-modal-title').textContent='New Task'; ['t-title','t-notes'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('t-due').value=today(); document.getElementById('modal-task').classList.add('open'); }
-function editTask(id){ populateDropdowns(); var t=DB.tasks.find(function(x){return x.id===id;}); if(!t)return; document.getElementById('task-edit-id').value=id; document.getElementById('task-modal-title').textContent='Edit Task'; document.getElementById('t-title').value=t.title; document.getElementById('t-client').value=t.client||''; document.getElementById('t-assignee').value=t.assignee||''; document.getElementById('t-priority').value=t.priority; document.getElementById('t-status').value=t.status; document.getElementById('t-due').value=t.due; document.getElementById('t-category').value=t.category; document.getElementById('t-notes').value=t.notes||''; document.getElementById('modal-task').classList.add('open'); }
-function saveTask(){ var title=document.getElementById('t-title').value.trim(); if(!title){alert('Task title required.');return;} var eid=document.getElementById('task-edit-id').value; var task={title:title,client:document.getElementById('t-client').value,assignee:document.getElementById('t-assignee').value,priority:document.getElementById('t-priority').value,status:document.getElementById('t-status').value,due:document.getElementById('t-due').value,category:document.getElementById('t-category').value,notes:document.getElementById('t-notes').value}; if(eid){var idx=DB.tasks.findIndex(function(x){return x.id==eid;});if(idx>=0){var prevStatus=DB.tasks[idx].status;task.id=+eid;task.created=DB.tasks[idx].created;task.isRecurring=DB.tasks[idx].isRecurring;task.templateId=DB.tasks[idx].templateId;DB.tasks[idx]=task;logActivity('Updated task: '+title);}}else{task.id=DB.nextId.task++;task.created=new Date().toISOString();DB.tasks.push(task);logActivity('Created task: '+title);} save();closeModal('modal-task');renderTasks();renderDashboard();toast('Task saved!','success'); }
+function openTaskModal(){ populateDropdowns(); document.getElementById('task-edit-id').value=''; document.getElementById('task-modal-title').textContent='New Task'; ['t-title','t-notes','t-est','t-actual'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('t-due').value=today(); document.getElementById('modal-task').classList.add('open'); }
+function editTask(id){ populateDropdowns(); var t=DB.tasks.find(function(x){return x.id===id;}); if(!t)return; document.getElementById('task-edit-id').value=id; document.getElementById('task-modal-title').textContent='Edit Task'; document.getElementById('t-title').value=t.title; document.getElementById('t-client').value=t.client||''; document.getElementById('t-assignee').value=t.assignee||''; document.getElementById('t-priority').value=t.priority; document.getElementById('t-status').value=t.status; document.getElementById('t-due').value=t.due; document.getElementById('t-category').value=t.category; document.getElementById('t-notes').value=t.notes||''; document.getElementById('t-est').value=t.estHours||''; document.getElementById('t-actual').value=t.actualHours||''; document.getElementById('modal-task').classList.add('open'); }
+function saveTask(){ var title=document.getElementById('t-title').value.trim(); if(!title){alert('Task title required.');return;} var eid=document.getElementById('task-edit-id').value; var task={title:title,client:document.getElementById('t-client').value,assignee:document.getElementById('t-assignee').value,priority:document.getElementById('t-priority').value,status:document.getElementById('t-status').value,due:document.getElementById('t-due').value,category:document.getElementById('t-category').value,notes:document.getElementById('t-notes').value,estHours:parseFloat(document.getElementById('t-est').value)||0,actualHours:parseFloat(document.getElementById('t-actual').value)||0};
+  if(eid){var idx=DB.tasks.findIndex(function(x){return x.id==eid;});if(idx>=0){var old=DB.tasks[idx];task.id=+eid;task.created=old.created;task.isRecurring=old.isRecurring;task.templateId=old.templateId;task.overtimeReason=old.overtimeReason;task.completedAt=old.completedAt;
+    if(task.status==='Done'&&old.status!=='Done'){ if(!captureTimeOnDone(task)) return; task.completedAt=new Date().toISOString(); }
+    else if(task.estHours&&task.actualHours&&task.actualHours>task.estHours&&!task.overtimeReason){
+      var reason=prompt('⚠ OVERTIME: Actual '+task.actualHours+'h exceeds estimate of '+task.estHours+'h.\n\nJustification is required:');
+      if(reason===null) return; reason=(reason||'').trim();
+      if(!reason){ alert('Justification cannot be empty for overtime.'); return; }
+      task.overtimeReason=reason;
+      logActivity('OVERTIME on "'+title+'": '+task.actualHours+'h vs '+task.estHours+'h est. Reason: '+reason);
+    }
+    DB.tasks[idx]=task;logActivity('Updated task: '+title);}}
+  else{task.id=DB.nextId.task++;task.created=new Date().toISOString();DB.tasks.push(task);logActivity('Created task: '+title+(task.estHours?' (est. '+task.estHours+'h)':''));}
+  save();closeModal('modal-task');renderTasks();renderDashboard();toast('Task saved!','success'); }
 function deleteTask(id){ if(!confirm('Delete this task?'))return; var t=DB.tasks.find(function(x){return x.id===id;}); DB.tasks=DB.tasks.filter(function(x){return x.id!==id;}); logActivity('Deleted task: '+(t?t.title:'')); save();renderTasks();renderDashboard();toast('Task deleted.'); }
 
 // ── CLIENTS ──
@@ -1225,16 +1331,66 @@ function deleteDoc(id){ if(!confirm('Delete?'))return; DB.documents=DB.documents
 // ── TEAM ──
 function renderTeam(){
   var data=DB.team||[];
+  var partner=isPartner();
   var tbody=document.getElementById('team-tbody');
-  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">🧑‍💼</div><p>No team members.</p></div></td></tr>'; return; }
-  tbody.innerHTML=data.map(function(m){
-    var activeTasks=(DB.tasks||[]).filter(function(t){return t.assignee===m.name&&t.status!=='Done';}).length;
-    return '<tr><td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar-sm a1">'+initials(m.name)+'</div><strong>'+esc(m.name)+'</strong></div></td><td>'+esc(m.role)+'</td><td>'+esc(m.email||'—')+'</td><td>'+esc(m.spec||'—')+'</td><td><span style="font-weight:700;color:'+(activeTasks>3?'var(--red)':'var(--green)')+'">'+activeTasks+'</span></td><td><span class="badge badge-active">Active</span></td><td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editTeam('+m.id+')">Edit</button></td></tr>';
-  }).join('');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">🧑‍💼</div><p>No team members.</p></div></td></tr>'; }
+  else{
+    tbody.innerHTML=data.map(function(m){
+      var activeTasks=(DB.tasks||[]).filter(function(t){return t.assignee===m.name&&t.status!=='Done';}).length;
+      var actions='<button class="btn btn-sm btn-outline" onclick="editTeam('+m.id+')">Edit</button>';
+      if(partner) actions+='<button class="btn btn-sm btn-danger" onclick="deleteTeam('+m.id+')">Del</button>';
+      return '<tr><td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar-sm a1">'+initials(m.name)+'</div><strong>'+esc(m.name)+'</strong></div></td><td>'+esc(m.role)+'</td><td>'+esc(m.email||'—')+'</td><td>'+esc(m.reportsTo||'—')+'</td><td>'+esc(m.spec||'—')+'</td><td><span style="font-weight:700;color:'+(activeTasks>3?'var(--red)':'var(--green)')+'">'+activeTasks+'</span></td><td><span class="badge badge-active">Active</span></td><td class="td-actions">'+actions+'</td></tr>';
+    }).join('');
+  }
+  renderOrgChart();
 }
-function openTeamModal(){ document.getElementById('tm-edit-id').value=''; document.getElementById('team-modal-title').textContent='Add Team Member'; ['tm-name','tm-email','tm-phone','tm-spec','tm-pass'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('modal-team').classList.add('open'); }
-function editTeam(id){ var m=DB.team.find(function(x){return x.id===id;}); if(!m)return; document.getElementById('tm-edit-id').value=id; document.getElementById('team-modal-title').textContent='Edit Member'; document.getElementById('tm-name').value=m.name; document.getElementById('tm-role').value=m.role; document.getElementById('tm-email').value=m.email||''; document.getElementById('tm-phone').value=m.phone||''; document.getElementById('tm-spec').value=m.spec||''; document.getElementById('modal-team').classList.add('open'); }
-function saveTeam(){ var name=document.getElementById('tm-name').value.trim(); if(!name){alert('Name required.');return;} var eid=document.getElementById('tm-edit-id').value; var m={name:name,role:document.getElementById('tm-role').value,email:document.getElementById('tm-email').value,phone:document.getElementById('tm-phone').value,spec:document.getElementById('tm-spec').value,active:true}; if(document.getElementById('tm-pass').value) m.pass=document.getElementById('tm-pass').value; if(eid){var idx=DB.team.findIndex(function(x){return x.id==eid;});if(idx>=0){m.id=+eid;if(!m.pass)m.pass=DB.team[idx].pass;DB.team[idx]=m;logActivity('Updated team member: '+name);}}else{m.id=DB.nextId.team++;DB.team.push(m);logActivity('Added team member: '+name);} save();closeModal('modal-team');renderTeam();toast('Team member saved!','success'); }
+function renderOrgChart(){
+  var el=document.getElementById('org-chart'); if(!el) return;
+  var team=DB.team||[];
+  if(!team.length){ el.innerHTML='<div class="empty-state"><div class="icon">🏛️</div><p>Add team members and set "Reports To" to build the structure.</p></div>'; return; }
+  // Build tree: top-level = no reportsTo (or reportsTo not found in team)
+  var names=team.map(function(m){return m.name;});
+  var roots=team.filter(function(m){return !m.reportsTo||names.indexOf(m.reportsTo)<0;});
+  function renderNode(m, depth){
+    var reports=team.filter(function(x){return x.reportsTo===m.name;});
+    var activeTasks=(DB.tasks||[]).filter(function(t){return t.assignee===m.name&&t.status!=='Done';}).length;
+    var html='<div style="margin-left:'+(depth*32)+'px;display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:6px;border:1px solid var(--border);border-radius:10px;background:'+(depth===0?'var(--cream)':'#fff')+';max-width:480px;">'+
+      (depth>0?'<span style="color:var(--muted);font-size:14px;">└─</span>':'')+
+      '<div class="avatar-sm a1">'+initials(m.name)+'</div>'+
+      '<div style="flex:1;"><div style="font-size:13px;font-weight:700;color:var(--dark);">'+esc(m.name)+'</div>'+
+      '<div style="font-size:11px;color:var(--muted);">'+esc(m.role)+(m.spec?' · '+esc(m.spec):'')+'</div></div>'+
+      '<span style="font-size:11px;font-weight:700;color:'+(activeTasks>3?'var(--red)':'var(--green)')+';">'+activeTasks+' tasks</span>'+
+      (reports.length?'<span style="font-size:11px;color:var(--muted);">'+reports.length+' report'+(reports.length>1?'s':'')+'</span>':'')+
+    '</div>';
+    reports.forEach(function(r){ html+=renderNode(r, depth+1); });
+    return html;
+  }
+  el.innerHTML=roots.map(function(r){return renderNode(r,0);}).join('');
+}
+function populateReportsTo(excludeId){
+  var sel=document.getElementById('tm-reports'); if(!sel) return;
+  var team=(DB.team||[]).filter(function(m){return m.id!=excludeId;});
+  sel.innerHTML='<option value="">— None (Top Level) —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+' ('+esc(m.role)+')</option>';}).join('');
+}
+function openTeamModal(){ populateReportsTo(null); document.getElementById('tm-edit-id').value=''; document.getElementById('team-modal-title').textContent='Add Team Member'; ['tm-name','tm-email','tm-phone','tm-spec','tm-pass'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('tm-reports').value=''; document.getElementById('modal-team').classList.add('open'); }
+function editTeam(id){ var m=DB.team.find(function(x){return x.id===id;}); if(!m)return; populateReportsTo(id); document.getElementById('tm-edit-id').value=id; document.getElementById('team-modal-title').textContent='Edit Member'; document.getElementById('tm-name').value=m.name; document.getElementById('tm-role').value=m.role; document.getElementById('tm-email').value=m.email||''; document.getElementById('tm-phone').value=m.phone||''; document.getElementById('tm-spec').value=m.spec||''; document.getElementById('tm-reports').value=m.reportsTo||''; document.getElementById('modal-team').classList.add('open'); }
+function saveTeam(){ var name=document.getElementById('tm-name').value.trim(); if(!name){alert('Name required.');return;} var eid=document.getElementById('tm-edit-id').value; var m={name:name,role:document.getElementById('tm-role').value,email:document.getElementById('tm-email').value,phone:document.getElementById('tm-phone').value,spec:document.getElementById('tm-spec').value,reportsTo:document.getElementById('tm-reports').value,active:true}; if(document.getElementById('tm-pass').value) m.pass=document.getElementById('tm-pass').value; if(eid){var idx=DB.team.findIndex(function(x){return x.id==eid;});if(idx>=0){var oldName=DB.team[idx].name;m.id=+eid;if(!m.pass)m.pass=DB.team[idx].pass;DB.team[idx]=m;if(oldName!==name){DB.team.forEach(function(x){if(x.reportsTo===oldName)x.reportsTo=name;});}logActivity('Updated team member: '+name);}}else{m.id=DB.nextId.team++;DB.team.push(m);logActivity('Added team member: '+name);} save();closeModal('modal-team');renderTeam();toast('Team member saved!','success'); }
+function deleteTeam(id){
+  if(!isPartner()){ toast('Only Partners can remove team members.','error'); return; }
+  var m=DB.team.find(function(x){return x.id===id;}); if(!m) return;
+  if(DB.currentUser&&DB.currentUser.email===m.email){ alert('You cannot delete your own account.'); return; }
+  var openTasks=(DB.tasks||[]).filter(function(t){return t.assignee===m.name&&t.status!=='Done';});
+  var msg='Remove '+m.name+' from the team?';
+  if(openTasks.length) msg+='\n\n⚠ '+m.name+' has '+openTasks.length+' open task(s). These will become Unassigned — reassign them from the Tasks page.';
+  if(!confirm(msg)) return;
+  openTasks.forEach(function(t){ t.assignee=''; });
+  // Re-point anyone reporting to this member up one level
+  DB.team.forEach(function(x){ if(x.reportsTo===m.name) x.reportsTo=m.reportsTo||''; });
+  DB.team=DB.team.filter(function(x){return x.id!==id;});
+  logActivity('Removed team member: '+m.name);
+  save(); renderTeam(); renderDashboard();
+  toast(m.name+' removed from team.');
+}
 
 // ── SETTINGS ──
 function saveProfile(){ var n=document.getElementById('pref-name').value.trim(); if(!n){alert('Name required.');return;} if(DB.currentUser){DB.currentUser.name=n;document.getElementById('sidebar-name').textContent=n;document.getElementById('profile-name-lg').textContent=n;} var pass=document.getElementById('pref-pass').value; if(pass&&DB.currentUser){ DB.currentUser.pass=pass; var tm=DB.team.find(function(t){return t.email===DB.currentUser.email;}); if(tm){tm.pass=pass;tm.name=n;} } logActivity('Updated profile'); save(); toast('Profile updated!','success'); }
@@ -1886,6 +2042,128 @@ var WORK_TEMPLATES=[
   }
 ];
 
+// Merged templates: built-in defaults overridden by partner edits stored in DB.templateEdits
+function getTemplates(){
+  var edits=DB.templateEdits||{};
+  return WORK_TEMPLATES.map(function(t){ return edits[t.id]?edits[t.id]:t; });
+}
+var _tplCurrentId=null;
+function openTemplateEdit(){
+  if(!isPartner()&&!isSeniorManager()){ toast('Only Partners / Senior Managers can edit templates.','error'); return; }
+  var t=getTemplates().find(function(x){return x.id===_tplCurrentId;}); if(!t) return;
+  document.getElementById('tpe-id').value=t.id;
+  document.getElementById('tpe-title').value=t.title;
+  document.getElementById('tpe-category').value=t.category;
+  document.getElementById('tpe-difficulty').value=t.difficulty;
+  document.getElementById('tpe-time').value=t.time;
+  document.getElementById('tpe-desc').value=t.desc;
+  document.getElementById('tpe-docs').value=t.docs.join('\n');
+  document.getElementById('tpe-steps').value=t.steps.map(function(s){return s.title+' :: '+s.detail;}).join('\n');
+  closeModal('modal-template');
+  document.getElementById('modal-tpl-edit').classList.add('open');
+}
+function saveTemplateEdit(){
+  var id=document.getElementById('tpe-id').value;
+  var title=document.getElementById('tpe-title').value.trim();
+  if(!title){alert('Title required.');return;}
+  var docs=document.getElementById('tpe-docs').value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  var steps=document.getElementById('tpe-steps').value.split('\n').map(function(s){return s.trim();}).filter(Boolean).map(function(line,i){
+    var parts=line.split('::');
+    return {n:i+1, title:(parts[0]||'').trim(), detail:(parts[1]||'').trim()};
+  });
+  if(!steps.length){alert('At least one step required.');return;}
+  if(!DB.templateEdits) DB.templateEdits={};
+  DB.templateEdits[id]={id:id,category:document.getElementById('tpe-category').value,title:title,desc:document.getElementById('tpe-desc').value.trim(),time:document.getElementById('tpe-time').value.trim(),difficulty:document.getElementById('tpe-difficulty').value,docs:docs,steps:steps};
+  logActivity('Edited work template: '+title);
+  save(); closeModal('modal-tpl-edit'); renderTemplates();
+  toast('Template updated!','success');
+}
+// ── CLIENT JOBS FROM TEMPLATES ──
+function openTemplateJobNew(){
+  var t=getTemplates().find(function(x){return x.id===_tplCurrentId;}); if(!t) return;
+  document.getElementById('tpj-tpl-id').value=t.id;
+  document.getElementById('tpj-tpl-name').value=t.title;
+  var clients=DB.clients||[], team=DB.team||[];
+  document.getElementById('tpj-client').innerHTML='<option value="">— Select Client —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
+  document.getElementById('tpj-assignee').innerHTML='<option value="">— Select Member —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>';}).join('');
+  closeModal('modal-template');
+  document.getElementById('modal-tpl-job-new').classList.add('open');
+}
+function startTemplateJob(){
+  var tplId=document.getElementById('tpj-tpl-id').value;
+  var client=document.getElementById('tpj-client').value;
+  var assignee=document.getElementById('tpj-assignee').value;
+  if(!client||!assignee){alert('Client and assignee are required.');return;}
+  var t=getTemplates().find(function(x){return x.id===tplId;}); if(!t) return;
+  if(!DB.templateJobs) DB.templateJobs=[];
+  var job={id:Date.now(),tplId:tplId,tplTitle:t.title,client:client,assignee:assignee,started:new Date().toISOString(),docs:{},steps:{},status:'In Progress'};
+  DB.templateJobs.push(job);
+  // Notify assignee
+  if(!DB.notifications) DB.notifications=[];
+  var me=DB.currentUser?DB.currentUser.name:'';
+  if(assignee!==me) DB.notifications.push({id:Date.now()+1,to:assignee,msg:'New job assigned: "'+t.title+'" for client '+client+' — open Work Templates → Active Client Jobs to track it.',ts:new Date().toISOString(),read:false});
+  logActivity('Started template job: '+t.title+' for '+client+' (assigned: '+assignee+')');
+  save(); closeModal('modal-tpl-job-new'); renderTemplates();
+  toast('Job started for '+client+'!','success');
+  openTemplateJob(job.id);
+}
+function renderTemplateJobs(){
+  var el=document.getElementById('tpl-jobs-list'); if(!el) return;
+  var jobs=DB.templateJobs||[];
+  if(!jobs.length){ el.innerHTML='<div class="empty-state" style="padding:20px;"><div class="icon">🗂️</div><p>No active jobs. Open a template and click "Use for Client" to start one.</p></div>'; return; }
+  el.innerHTML=jobs.slice().reverse().map(function(j){
+    var t=getTemplates().find(function(x){return x.id===j.tplId;});
+    var totalDocs=t?t.docs.length:0, totalSteps=t?t.steps.length:0;
+    var gotDocs=Object.keys(j.docs||{}).filter(function(k){return j.docs[k];}).length;
+    var doneSteps=Object.keys(j.steps||{}).filter(function(k){return j.steps[k];}).length;
+    var pct=totalSteps?Math.round(doneSteps/totalSteps*100):0;
+    var complete=pct===100;
+    return '<div class="deadline-item" style="cursor:pointer;" onclick="openTemplateJob('+j.id+')">'+
+      '<div style="flex:1;"><div class="deadline-title">'+esc(j.tplTitle)+(complete?' <span style="color:var(--green);font-size:12px;">✔ Complete</span>':'')+'</div>'+
+      '<div class="deadline-sub">'+esc(j.client)+' · '+esc(j.assignee)+' · Docs: '+gotDocs+'/'+totalDocs+' received · Steps: '+doneSteps+'/'+totalSteps+'</div></div>'+
+      '<div style="width:120px;"><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;background:'+(complete?'#38a169':'var(--gold)')+';"></div></div><div style="font-size:11px;color:var(--muted);text-align:right;margin-top:2px;">'+pct+'%</div></div>'+
+    '</div>';
+  }).join('');
+}
+function openTemplateJob(jobId){
+  var j=(DB.templateJobs||[]).find(function(x){return x.id===jobId;}); if(!j) return;
+  var t=getTemplates().find(function(x){return x.id===j.tplId;}); if(!t) return;
+  document.getElementById('tpj-view-title').textContent=j.tplTitle+' — '+j.client;
+  document.getElementById('tpj-view-body').innerHTML=
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Assigned to <strong>'+esc(j.assignee)+'</strong> · Started '+new Date(j.started).toLocaleDateString('en-IN')+'</div>'+
+    '<div style="background:var(--cream);border-radius:10px;padding:14px 16px;margin-bottom:18px;">'+
+      '<div style="font-size:13px;font-weight:700;margin-bottom:10px;">📄 Document Checklist — tick as received from client</div>'+
+      t.docs.map(function(d,i){
+        var got=!!(j.docs||{})[i];
+        return '<label style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;font-size:13px;'+(got?'color:var(--green);':'')+'">'+
+          '<input type="checkbox" '+(got?'checked':'')+' onchange="toggleJobDoc('+j.id+','+i+',this.checked)" style="width:16px;height:16px;accent-color:var(--gold);">'+
+          '<span style="'+(got?'text-decoration:line-through;opacity:0.75;':'')+'">'+esc(d)+'</span>'+
+          (got?'<span style="margin-left:auto;font-size:11px;">✔ Received</span>':'<span style="margin-left:auto;font-size:11px;color:var(--red);">Pending</span>')+
+        '</label>';
+      }).join('')+
+    '</div>'+
+    '<div style="font-size:13px;font-weight:700;margin-bottom:10px;">📋 Process Steps — tick as completed</div>'+
+    t.steps.map(function(s,i){
+      var done=!!(j.steps||{})[i];
+      return '<div style="display:flex;gap:12px;margin-bottom:10px;padding:10px 12px;border:1px solid '+(done?'#38a169':'var(--border)')+';border-radius:10px;background:'+(done?'#f0fff4':'#fff')+';">'+
+        '<input type="checkbox" '+(done?'checked':'')+' onchange="toggleJobStep('+j.id+','+i+',this.checked)" style="width:18px;height:18px;accent-color:#38a169;flex-shrink:0;margin-top:2px;cursor:pointer;">'+
+        '<div><div style="font-size:13px;font-weight:700;'+(done?'text-decoration:line-through;opacity:0.7;':'')+'">'+s.n+'. '+esc(s.title)+'</div>'+
+        '<div style="font-size:12px;color:var(--muted);line-height:1.5;">'+esc(s.detail)+'</div></div>'+
+      '</div>';
+    }).join('');
+  document.getElementById('tpj-delete-btn').onclick=function(){ deleteTemplateJob(j.id); };
+  document.getElementById('tpj-delete-btn').style.display=isPartner()?'':'none';
+  document.getElementById('modal-tpl-job').classList.add('open');
+}
+function toggleJobDoc(jobId,idx,val){ var j=(DB.templateJobs||[]).find(function(x){return x.id===jobId;}); if(!j)return; if(!j.docs)j.docs={}; j.docs[idx]=val; save(); openTemplateJob(jobId); renderTemplateJobs(); }
+function toggleJobStep(jobId,idx,val){ var j=(DB.templateJobs||[]).find(function(x){return x.id===jobId;}); if(!j)return; if(!j.steps)j.steps={}; j.steps[idx]=val; save(); openTemplateJob(jobId); renderTemplateJobs(); }
+function deleteTemplateJob(jobId){
+  if(!confirm('Delete this client job and its checklist progress?')) return;
+  DB.templateJobs=(DB.templateJobs||[]).filter(function(x){return x.id!==jobId;});
+  save(); closeModal('modal-tpl-job'); renderTemplateJobs();
+  toast('Job deleted.');
+}
+
 var _tplFilter='';
 function filterTemplates(cat){
   _tplFilter=cat;
@@ -1898,8 +2176,10 @@ function filterTemplates(cat){
   renderTemplates();
 }
 function renderTemplates(){
+  renderTemplateJobs();
   var grid=document.getElementById('templates-grid'); if(!grid)return;
-  var list=_tplFilter?WORK_TEMPLATES.filter(function(t){return t.category===_tplFilter;}):WORK_TEMPLATES;
+  var all=getTemplates();
+  var list=_tplFilter?all.filter(function(t){return t.category===_tplFilter;}):all;
   if(!list.length){grid.innerHTML='<div class="empty-state"><div class="icon">📝</div><p>No templates in this category.</p></div>';return;}
   var diffColor={Easy:'#38a169',Medium:'#D69E2E',High:'#e53e3e'};
   grid.innerHTML=list.map(function(t){
@@ -1919,7 +2199,10 @@ function renderTemplates(){
   }).join('');
 }
 function openTemplate(id){
-  var t=WORK_TEMPLATES.find(function(x){return x.id===id;}); if(!t)return;
+  var t=getTemplates().find(function(x){return x.id===id;}); if(!t)return;
+  _tplCurrentId=id;
+  var eb=document.getElementById('tpl-edit-btn');
+  if(eb) eb.style.display=(isPartner()||isSeniorManager())?'':'none';
   document.getElementById('tpl-modal-title').textContent=t.title;
   var diffColor={Easy:'#38a169',Medium:'#D69E2E',High:'#e53e3e'};
   document.getElementById('tpl-modal-body').innerHTML=
