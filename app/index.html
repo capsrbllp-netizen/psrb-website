@@ -232,15 +232,16 @@ tr:hover td{background:var(--cream);}
     <div class="sidebar-section">Main</div>
     <button class="nav-item active" onclick="showView('dashboard',this)"><span class="icon">🏠</span> Dashboard</button>
     <button class="nav-item" onclick="showView('tasks',this)"><span class="icon">✅</span> Tasks <span class="nav-badge" id="pending-badge">0</span></button>
-    <button class="nav-item" onclick="showView('clients',this)"><span class="icon">👥</span> Clients</button>
     <button class="nav-item" onclick="showView('deadlines',this)"><span class="icon">📅</span> Deadlines <span class="nav-badge" id="overdue-badge" style="display:none">!</span></button>
-    <button class="nav-item" onclick="showView('workchart',this)"><span class="icon">📊</span> Work Chart</button>
-    <button class="nav-item" onclick="showView('recurring',this)"><span class="icon">🔁</span> Recurring Setup</button>
+    <button class="nav-item" onclick="showView('workchart',this)" id="nav-workchart"><span class="icon">📊</span> Work Chart</button>
+    <button class="nav-item" onclick="showView('recurring',this)" id="nav-recurring"><span class="icon">🔁</span> Recurring Setup</button>
     <div class="sidebar-section">Finance</div>
-    <button class="nav-item" onclick="showView('billing',this)"><span class="icon">💰</span> Billing & Fees</button>
+    <button class="nav-item" onclick="showView('clients',this)" id="nav-clients2"><span class="icon">👥</span> Clients</button>
+    <button class="nav-item" onclick="showView('billing',this)" id="nav-billing"><span class="icon">💰</span> Billing & Fees</button>
     <button class="nav-item" onclick="showView('documents',this)"><span class="icon">📁</span> Documents</button>
     <div class="sidebar-section">Settings</div>
-    <button class="nav-item" onclick="showView('team',this)"><span class="icon">🧑‍💼</span> Team</button>
+    <button class="nav-item" onclick="showView('team',this)" id="nav-team"><span class="icon">🧑‍💼</span> Team</button>
+    <button class="nav-item" onclick="showView('access',this)" id="nav-access"><span class="icon">🔐</span> Access Control</button>
     <button class="nav-item" onclick="showView('settings',this)"><span class="icon">⚙️</span> Settings</button>
     <div class="sidebar-footer">
       <div class="user-card">
@@ -327,6 +328,52 @@ tr:hover td{background:var(--cream);}
               <tbody id="tasks-tbody"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- ACCESS CONTROL -->
+      <div class="view" id="view-access">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🔐 Staff Access Control</div>
+            <button class="btn btn-primary" onclick="savePermissions()">Save Permissions</button>
+          </div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Partners always have full access. Use this panel to grant or restrict access for other team members.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Staff Member</th><th>Role</th>
+                  <th style="text-align:center;">Clients</th>
+                  <th style="text-align:center;">Billing</th>
+                  <th style="text-align:center;">All Tasks</th>
+                  <th style="text-align:center;">Recurring</th>
+                  <th style="text-align:center;">Team Mgmt</th>
+                  <th style="text-align:center;">Deadlines</th>
+                </tr>
+              </thead>
+              <tbody id="access-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header"><div class="card-title">ℹ️ Default Access by Role</div></div>
+          <table>
+            <thead><tr><th>Module</th><th>Partner</th><th>Others (default)</th></tr></thead>
+            <tbody>
+              <tr><td>Dashboard</td><td>✅</td><td>✅</td></tr>
+              <tr><td>Tasks (own)</td><td>✅</td><td>✅</td></tr>
+              <tr><td>Deadlines</td><td>✅</td><td>✅ (grantable)</td></tr>
+              <tr><td>Documents</td><td>✅</td><td>✅</td></tr>
+              <tr><td>Work Chart</td><td>✅</td><td>✅ (own)</td></tr>
+              <tr><td>Clients</td><td>✅</td><td>❌ (grantable)</td></tr>
+              <tr><td>Billing</td><td>✅</td><td>❌ (grantable)</td></tr>
+              <tr><td>All Tasks</td><td>✅</td><td>❌ (grantable)</td></tr>
+              <tr><td>Recurring Setup</td><td>✅</td><td>❌ (grantable)</td></tr>
+              <tr><td>Team Management</td><td>✅</td><td>❌ (grantable)</td></tr>
+              <tr><td>Access Control</td><td>✅</td><td>❌ (Partners only)</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -581,6 +628,22 @@ tr:hover td{background:var(--cream);}
       <div class="field"><label>Status</label><select id="c-status"><option>Active</option><option>Inactive</option></select></div>
     </div>
     <div class="field"><label>Address</label><textarea id="c-address" placeholder="Full address..." style="min-height:60px;"></textarea></div>
+    <div class="field">
+      <label>Applicable Compliance (auto-creates recurring tasks monthly/quarterly/annually)</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;padding:14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--border);">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="cc-gstr1" value="gstr1"> GSTR-1 (Monthly)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="cc-gstr3b" value="gstr3b"> GSTR-3B (Monthly)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="cc-tds-challan" value="tds_challan"> TDS Challan (Monthly)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="cc-tds-return" value="tds_return"> TDS Return (Quarterly)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="cc-pf" value="pf_esi"> PF / ESI (Monthly)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="cc-itr" value="itr"> ITR (Annual)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="cc-gstr9" value="gstr9"> GSTR-9 Annual Return</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="cc-roc" value="roc"> ROC Annual Filing</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="cc-audit" value="audit"> Statutory Audit (Annual)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="cc-ptax" value="ptax"> Professional Tax (Monthly)</label>
+      </div>
+    </div>
+    <div class="field"><label>Default Staff for This Client's Tasks</label><select id="c-assignee"><option value="">— Select Assignee —</option></select></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-client')">Cancel</button>
       <button class="btn btn-primary" onclick="saveClient()">Save Client</button>
@@ -850,7 +913,9 @@ function doLogin(){
   document.getElementById('pref-email').value=u.email;
   document.getElementById('topbar-date').textContent='— '+new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   logActivity('Signed in');
+  updateSidebarForRole();
   generateRecurringTasks();
+  generateClientRecurringTasks();
   refreshAll();
 }
 function doLogout(){
@@ -872,7 +937,11 @@ function showView(id, btn){
   document.getElementById('view-'+id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   if(btn) btn.classList.add('active');
-  var titles={dashboard:'Dashboard',tasks:'Tasks',clients:'Clients',deadlines:'Deadlines',billing:'Billing & Fees',documents:'Documents',team:'Team',settings:'Settings',workchart:'Work Chart',recurring:'Recurring Setup'};
+  var titles={dashboard:'Dashboard',tasks:'Tasks',clients:'Clients',deadlines:'Deadlines',billing:'Billing & Fees',documents:'Documents',team:'Team',settings:'Settings',workchart:'Work Chart',recurring:'Recurring Setup',access:'Access Control'};
+  // Permission gate
+  var permGate={clients:'view_clients',billing:'view_billing',recurring:'manage_recurring',team:'view_team'};
+  if(id==='access'&&!isPartner()){ document.getElementById('view-access').innerHTML='<div class="card"><div class="empty-state"><div class="icon">🔒</div><p><strong>Partners Only</strong><br>Access Control is restricted to Partners.</p></div></div>'; }
+  else if(permGate[id]&&!hasPermission(permGate[id])){ var v=document.getElementById('view-'+id); if(v) v.innerHTML='<div class="card"><div class="empty-state"><div class="icon">🔒</div><p><strong>Access Restricted</strong><br>You do not have permission to view this section.<br>Please contact a Partner to request access.</p></div></div>'; return; }
   document.getElementById('topbar-title').textContent=titles[id]||id;
   if(id==='tasks') renderTasks();
   if(id==='clients') renderClients();
@@ -883,7 +952,7 @@ function showView(id, btn){
   if(id==='dashboard') renderDashboard();
   if(id==='workchart') renderWorkChart();
   if(id==='recurring') renderRecurring();
-  if(id==='settings'){  }
+  if(id==='access') renderAccessControl();
 }
 
 // ── REFRESH ALL ──
@@ -987,9 +1056,9 @@ function renderClients(){
     return '<tr><td><strong>'+esc(c.name)+'</strong></td><td>'+esc(c.type)+'</td><td><span style="font-size:12px;">'+esc(c.pan||'—')+'</span><br><span style="font-size:11px;color:var(--muted);">'+esc(c.gstin||'—')+'</span></td><td>'+esc(c.contact||'—')+'<br><span style="font-size:12px;color:var(--muted);">'+esc(c.phone||'')+'</span></td><td>'+esc(c.service||'—')+'</td><td><span class="badge badge-'+(c.status==='Active'?'active':'inactive')+'">'+c.status+'</span></td><td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editClient('+c.id+')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteClient('+c.id+')">Del</button></td></tr>';
   }).join('');
 }
-function openClientModal(){ document.getElementById('client-edit-id').value=''; document.getElementById('client-modal-title').textContent='Add Client'; ['c-name','c-pan','c-gst','c-contact','c-phone','c-email','c-address'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('c-fee').value=''; document.getElementById('c-status').value='Active'; document.getElementById('modal-client').classList.add('open'); }
-function editClient(id){ var c=DB.clients.find(function(x){return x.id===id;}); if(!c)return; document.getElementById('client-edit-id').value=id; document.getElementById('client-modal-title').textContent='Edit Client'; document.getElementById('c-name').value=c.name; document.getElementById('c-type').value=c.type; document.getElementById('c-pan').value=c.pan||''; document.getElementById('c-gst').value=c.gstin||''; document.getElementById('c-contact').value=c.contact||''; document.getElementById('c-phone').value=c.phone||''; document.getElementById('c-email').value=c.email||''; document.getElementById('c-service').value=c.service; document.getElementById('c-fee').value=c.fee||''; document.getElementById('c-status').value=c.status; document.getElementById('c-address').value=c.address||''; document.getElementById('modal-client').classList.add('open'); }
-function saveClient(){ var name=document.getElementById('c-name').value.trim(); if(!name){alert('Client name required.');return;} var eid=document.getElementById('client-edit-id').value; var cl={name:name,type:document.getElementById('c-type').value,pan:document.getElementById('c-pan').value.toUpperCase(),gstin:document.getElementById('c-gst').value,contact:document.getElementById('c-contact').value,phone:document.getElementById('c-phone').value,email:document.getElementById('c-email').value,service:document.getElementById('c-service').value,fee:document.getElementById('c-fee').value,status:document.getElementById('c-status').value,address:document.getElementById('c-address').value}; if(eid){var idx=DB.clients.findIndex(function(x){return x.id==eid;});if(idx>=0){cl.id=+eid;DB.clients[idx]=cl;logActivity('Updated client: '+name);}}else{cl.id=DB.nextId.client++;DB.clients.push(cl);logActivity('Added client: '+name);} save();closeModal('modal-client');renderClients();renderDashboard();toast('Client saved!','success'); }
+function openClientModal(){ populateDropdowns(); document.getElementById('client-edit-id').value=''; document.getElementById('client-modal-title').textContent='Add Client'; ['c-name','c-pan','c-gst','c-contact','c-phone','c-email','c-address'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('c-fee').value=''; document.getElementById('c-status').value='Active'; document.getElementById('c-assignee').value=''; setClientCompliance([]); document.getElementById('modal-client').classList.add('open'); }
+function editClient(id){ populateDropdowns(); var c=DB.clients.find(function(x){return x.id===id;}); if(!c)return; document.getElementById('client-edit-id').value=id; document.getElementById('client-modal-title').textContent='Edit Client'; document.getElementById('c-name').value=c.name; document.getElementById('c-type').value=c.type; document.getElementById('c-pan').value=c.pan||''; document.getElementById('c-gst').value=c.gstin||''; document.getElementById('c-contact').value=c.contact||''; document.getElementById('c-phone').value=c.phone||''; document.getElementById('c-email').value=c.email||''; document.getElementById('c-service').value=c.service; document.getElementById('c-fee').value=c.fee||''; document.getElementById('c-status').value=c.status; document.getElementById('c-address').value=c.address||''; document.getElementById('c-assignee').value=c.defaultAssignee||''; setClientCompliance(c.recurringServices||[]); document.getElementById('modal-client').classList.add('open'); }
+function saveClient(){ var name=document.getElementById('c-name').value.trim(); if(!name){alert('Client name required.');return;} var eid=document.getElementById('client-edit-id').value; var cl={name:name,type:document.getElementById('c-type').value,pan:document.getElementById('c-pan').value.toUpperCase(),gstin:document.getElementById('c-gst').value,contact:document.getElementById('c-contact').value,phone:document.getElementById('c-phone').value,email:document.getElementById('c-email').value,service:document.getElementById('c-service').value,fee:document.getElementById('c-fee').value,status:document.getElementById('c-status').value,address:document.getElementById('c-address').value,recurringServices:getClientCompliance(),defaultAssignee:document.getElementById('c-assignee').value}; if(eid){var idx=DB.clients.findIndex(function(x){return x.id==eid;});if(idx>=0){cl.id=+eid;DB.clients[idx]=cl;logActivity('Updated client: '+name);}}else{cl.id=DB.nextId.client++;DB.clients.push(cl);logActivity('Added client: '+name+' with '+cl.recurringServices.length+' recurring compliance(s)');} save(); var newTasks=generateClientRecurringTasks(); closeModal('modal-client');renderClients();renderDashboard(); toast('Client saved!'+(newTasks>0?' '+newTasks+' recurring tasks created.':''),'success'); }
 function deleteClient(id){ if(!confirm('Delete this client?'))return; var c=DB.clients.find(function(x){return x.id===id;}); DB.clients=DB.clients.filter(function(x){return x.id!==id;}); logActivity('Deleted client: '+(c?c.name:'')); save();renderClients();renderDashboard();toast('Client deleted.'); }
 
 // ── DEADLINES ──
@@ -1068,7 +1137,7 @@ function populateDropdowns(){
   var cOpts='<option value="">— None —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
   var tOpts='<option value="">— Unassigned —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>';}).join('');
   ['t-client','dl-client','doc-client','bill-client'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=id==='bill-client'?'<option value="">— Select —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join(''):cOpts;});
-  ['t-assignee','dl-assignee'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=tOpts;});
+  ['t-assignee','dl-assignee','c-assignee'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=tOpts;});
 }
 function openQuickAdd(){ document.getElementById('modal-quickadd').classList.add('open'); }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
@@ -1081,6 +1150,154 @@ function esc(s){ if(!s&&s!==0)return ''; return String(s).replace(/&/g,'&amp;').
 function logActivity(text){ if(!DB.activity)DB.activity=[]; var user=DB.currentUser?DB.currentUser.name:'System'; DB.activity.push({text:user+': '+text,ts:new Date().toISOString()}); if(DB.activity.length>100)DB.activity=DB.activity.slice(-100); }
 function toast(msg,type){ var el=document.getElementById('toast'); el.textContent=msg; el.className='toast '+(type||''); el.classList.add('show'); setTimeout(function(){el.classList.remove('show');},2500); }
 function globalSearch(q){ if(!q||q.length<2)return; /* simple highlight across visible view */ }
+
+// ── PERMISSIONS ──
+function isPartner(){
+  var u=DB.currentUser; if(!u) return false;
+  return u.role&&(u.role.toLowerCase().includes('partner')||u.role.toLowerCase().includes('managing'));
+}
+function hasPermission(perm){
+  if(isPartner()) return true;
+  var u=DB.currentUser; if(!u) return false;
+  var perms=((DB.permissions||{})[u.email])||{};
+  return !!perms[perm];
+}
+var VIEW_PERMS={clients:'view_clients',billing:'view_billing',recurring:'manage_recurring',team:'view_team',access:'partner_only'};
+
+function updateSidebarForRole(){
+  var partner=isPartner();
+  var restricted=['nav-clients2','nav-billing','nav-recurring','nav-team','nav-access'];
+  restricted.forEach(function(id){
+    var el=document.getElementById(id); if(!el) return;
+    var view=id.replace('nav-','').replace('2','');
+    if(id==='nav-access'){ el.style.display=partner?'':'none'; return; }
+    var perm=VIEW_PERMS[view];
+    el.style.display=(partner||hasPermission(perm))?'':'none';
+  });
+}
+
+// ── ACCESS CONTROL ──
+var PERM_DEFS=[
+  {key:'view_clients',label:'Clients'},
+  {key:'view_billing',label:'Billing'},
+  {key:'view_all_tasks',label:'All Tasks'},
+  {key:'manage_recurring',label:'Recurring'},
+  {key:'view_team',label:'Team Mgmt'},
+  {key:'view_deadlines',label:'Deadlines'}
+];
+function renderAccessControl(){
+  var team=(DB.team||[]).filter(function(m){
+    return !m.role||!(m.role.toLowerCase().includes('partner')||m.role.toLowerCase().includes('managing'));
+  });
+  var tbody=document.getElementById('access-tbody');
+  if(!team.length){
+    tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">🔐</div><p>No non-partner staff to configure. Add staff in Team first.</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML=team.map(function(m){
+    var perms=((DB.permissions||{})[m.email])||{};
+    var checks=PERM_DEFS.map(function(p){
+      return '<td style="text-align:center;"><input type="checkbox" data-email="'+esc(m.email)+'" data-perm="'+p.key+'" '+(perms[p.key]?'checked':'')+' onchange="togglePerm(this)"></td>';
+    }).join('');
+    return '<tr><td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar-sm a1">'+initials(m.name)+'</div><strong>'+esc(m.name)+'</strong></div></td><td><span style="font-size:12px;color:var(--muted);">'+esc(m.role)+'</span></td>'+checks+'</tr>';
+  }).join('');
+}
+function togglePerm(el){
+  var email=el.dataset.email, perm=el.dataset.perm;
+  if(!DB.permissions) DB.permissions={};
+  if(!DB.permissions[email]) DB.permissions[email]={};
+  DB.permissions[email][perm]=el.checked;
+}
+function savePermissions(){
+  save();
+  toast('Access permissions saved!','success');
+  updateSidebarForRole();
+}
+
+// ── CLIENT-WISE RECURRING ──
+var CLIENT_COMPLIANCE={
+  gstr1:   {name:'GSTR-1',      category:'GST',         frequency:'monthly',   dueDay:11, dueOffset:1},
+  gstr3b:  {name:'GSTR-3B',     category:'GST',         frequency:'monthly',   dueDay:20, dueOffset:1},
+  tds_challan:{name:'TDS Challan',category:'TDS',        frequency:'monthly',   dueDay:7,  dueOffset:1},
+  tds_return: {name:'TDS Return',category:'TDS',         frequency:'quarterly', fixedDates:['07-31','10-31','01-31','05-31'], qLabels:['Q1','Q2','Q3','Q4']},
+  pf_esi:  {name:'PF/ESI',      category:'PF/ESI',      frequency:'monthly',   dueDay:15, dueOffset:1},
+  itr:     {name:'ITR Filing',  category:'Income Tax',  frequency:'annual',    fixedDate:'07-31'},
+  gstr9:   {name:'GSTR-9',      category:'GST',         frequency:'annual',    fixedDate:'12-31'},
+  roc:     {name:'ROC Filing',  category:'ROC/MCA',     frequency:'annual',    fixedDate:'10-29'},
+  audit:   {name:'Statutory Audit',category:'Audit',    frequency:'annual',    fixedDate:'09-30'},
+  ptax:    {name:'Professional Tax',category:'Other',   frequency:'monthly',   dueDay:15, dueOffset:1}
+};
+
+function generateClientRecurringTasks(){
+  if(!DB.clientRecurringGenerated) DB.clientRecurringGenerated={};
+  var now=new Date();
+  var yr=now.getFullYear(), mo=now.getMonth();
+  var generated=0;
+  (DB.clients||[]).forEach(function(client){
+    if(!client.recurringServices||!client.recurringServices.length) return;
+    var assignee=client.defaultAssignee||'';
+    client.recurringServices.forEach(function(svcKey){
+      var svc=CLIENT_COMPLIANCE[svcKey]; if(!svc) return;
+      if(svc.frequency==='monthly'){
+        var period=yr+'-'+String(mo+1).padStart(2,'0');
+        var key='c'+client.id+'-'+svcKey+'-'+period;
+        if(DB.clientRecurringGenerated[key]) return;
+        var dueMo=mo+(svc.dueOffset||1), dueYr=yr;
+        if(dueMo>11){dueMo-=12;dueYr++;}
+        var dueDate=dueYr+'-'+String(dueMo+1).padStart(2,'0')+'-'+String(svc.dueDay).padStart(2,'0');
+        var task={id:DB.nextId.task++,title:svc.name+' — '+client.name+' — '+now.toLocaleString('default',{month:'long'})+' '+yr,
+          assignee:assignee,category:svc.category,priority:'High',status:'Todo',due:dueDate,client:client.name,
+          notes:'Auto-generated client recurring task',isRecurring:true,isClientRecurring:true,created:new Date().toISOString()};
+        DB.tasks.push(task);
+        DB.clientRecurringGenerated[key]=task.id;
+        logActivity('Auto-created: '+task.title);
+        generated++;
+      } else if(svc.frequency==='quarterly'){
+        var qIdx=Math.floor(mo/3);
+        var period=yr+'-Q'+(qIdx+1);
+        var key='c'+client.id+'-'+svcKey+'-'+period;
+        if(DB.clientRecurringGenerated[key]) return;
+        var dates=svc.fixedDates||['07-31']; var labels=svc.qLabels||['Q1'];
+        var fd=dates[qIdx]||dates[0]; var parts=fd.split('-');
+        var dueDate=yr+'-'+parts[0]+'-'+parts[1];
+        var task={id:DB.nextId.task++,title:svc.name+' '+(labels[qIdx]||'')+'— '+client.name+' — '+yr,
+          assignee:assignee,category:svc.category,priority:'High',status:'Todo',due:dueDate,client:client.name,
+          notes:'Auto-generated quarterly task',isRecurring:true,isClientRecurring:true,created:new Date().toISOString()};
+        DB.tasks.push(task);
+        DB.clientRecurringGenerated[key]=task.id;
+        logActivity('Auto-created: '+task.title);
+        generated++;
+      } else if(svc.frequency==='annual'){
+        var period=String(yr);
+        var key='c'+client.id+'-'+svcKey+'-'+period;
+        if(DB.clientRecurringGenerated[key]) return;
+        var parts=(svc.fixedDate||'03-31').split('-');
+        var dueYr=yr; var dueM=parseInt(parts[0])-1;
+        if(mo>dueM) dueYr=yr+1;
+        var dueDate=dueYr+'-'+parts[0]+'-'+parts[1];
+        var task={id:DB.nextId.task++,title:svc.name+' — '+client.name+' — FY '+yr+'-'+(yr+1),
+          assignee:assignee,category:svc.category,priority:'Medium',status:'Todo',due:dueDate,client:client.name,
+          notes:'Auto-generated annual task',isRecurring:true,isClientRecurring:true,created:new Date().toISOString()};
+        DB.tasks.push(task);
+        DB.clientRecurringGenerated[key]=task.id;
+        logActivity('Auto-created: '+task.title);
+        generated++;
+      }
+    });
+  });
+  if(generated>0){ save(); updateBadges(); }
+  return generated;
+}
+
+var CC_IDS=['cc-gstr1','cc-gstr3b','cc-tds-challan','cc-tds-return','cc-pf','cc-itr','cc-gstr9','cc-roc','cc-audit','cc-ptax'];
+var CC_VALS=['gstr1','gstr3b','tds_challan','tds_return','pf_esi','itr','gstr9','roc','audit','ptax'];
+function getClientCompliance(){
+  return CC_IDS.map(function(id,i){return document.getElementById(id)&&document.getElementById(id).checked?CC_VALS[i]:null;}).filter(Boolean);
+}
+function setClientCompliance(arr){
+  arr=arr||[];
+  CC_IDS.forEach(function(id,i){var el=document.getElementById(id);if(el)el.checked=arr.indexOf(CC_VALS[i])>=0;});
+}
 
 // ── RECURRING TASKS ──
 var DEFAULT_RECURRING = [
@@ -1424,6 +1641,9 @@ if(_sess){ try{ var u=JSON.parse(_sess); DB.currentUser=u;
   document.getElementById('pref-name').value=u.name||'';
   document.getElementById('pref-email').value=u.email||'';
   document.getElementById('topbar-date').textContent='— '+new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  updateSidebarForRole();
+  generateRecurringTasks();
+  generateClientRecurringTasks();
   refreshAll();
 }catch(e){ sessionStorage.removeItem('psrb_session'); } }
 })();
