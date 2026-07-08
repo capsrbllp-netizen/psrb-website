@@ -630,6 +630,25 @@ tr:hover td{background:var(--cream);}
 
 <div class="toast" id="toast"></div>
 
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+// Firebase init
+const firebaseConfig = {
+  apiKey: "AIzaSyBIltzmlAZk2lVCOwdiTOyYRMd7qBtHaGk",
+  authDomain: "psrb-office-os.firebaseapp.com",
+  projectId: "psrb-office-os",
+  storageBucket: "psrb-office-os.firebasestorage.app",
+  messagingSenderId: "227524918489",
+  appId: "1:227524918489:web:43a081bb0e7cc01ff2d2c8"
+};
+firebase.initializeApp(firebaseConfig);
+var fsdb = firebase.firestore();
+var FS_DOC = fsdb.collection('psrb_data').doc('main');
+</script>
+
 <script>
 // ── DATA ──
 var USERS = [
@@ -644,9 +663,14 @@ var DB = {
   nextId:{task:1,client:1,deadline:1,billing:1,doc:1,team:1}
 };
 
-function load(){
-  var saved = localStorage.getItem('psrb_os_v2');
-  if(saved){ try{ var d=JSON.parse(saved); Object.assign(DB,d); }catch(e){} }
+async function load(){
+  try{
+    var snap = await FS_DOC.get();
+    if(snap.exists){ Object.assign(DB, snap.data()); }
+  }catch(e){ console.warn('Firestore load failed, using localStorage fallback',e);
+    var saved=localStorage.getItem('psrb_os_v2');
+    if(saved){ try{ Object.assign(DB,JSON.parse(saved)); }catch(e2){} }
+  }
   // Seed team from partners if empty
   if(!DB.team || DB.team.length===0){
     DB.team=[
@@ -693,7 +717,12 @@ function load(){
     save();
   }
 }
-function save(){ var d=Object.assign({},DB); delete d.currentUser; localStorage.setItem('psrb_os_v2',JSON.stringify(d)); }
+function save(){
+  var d=Object.assign({},DB); delete d.currentUser;
+  FS_DOC.set(d).catch(function(e){ console.warn('Firestore save failed',e);
+    localStorage.setItem('psrb_os_v2',JSON.stringify(d));
+  });
+}
 function fmt(d){ return d.toISOString().split('T')[0]; }
 function today(){ return fmt(new Date()); }
 function daysUntil(dateStr){ return Math.ceil((new Date(dateStr)-new Date(today()))/(86400000)); }
@@ -962,7 +991,8 @@ document.querySelectorAll('.modal-overlay').forEach(function(el){
 });
 
 // ── INIT ──
-load();
+(async function(){
+await load();
 // Restore session only from sessionStorage (clears when browser tab closes)
 var _sess = sessionStorage.getItem('psrb_session');
 if(_sess){ try{ var u=JSON.parse(_sess); DB.currentUser=u;
@@ -980,6 +1010,7 @@ if(_sess){ try{ var u=JSON.parse(_sess); DB.currentUser=u;
   document.getElementById('topbar-date').textContent='— '+new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   refreshAll();
 }catch(e){ sessionStorage.removeItem('psrb_session'); } }
+})();
 </script>
 </body>
 </html>
