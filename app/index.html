@@ -315,7 +315,7 @@ tr:hover td{background:var(--cream);}
                 <option value="Low">Low</option>
               </select>
             </div>
-            <button class="btn btn-primary" onclick="openTaskModal()">+ New Task</button>
+            <button class="btn btn-primary" id="btn-new-task" onclick="openTaskModal()">+ New Task</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -434,7 +434,7 @@ tr:hover td{background:var(--cream);}
         <div class="card">
           <div class="card-header">
             <div class="card-title">Client Directory</div>
-            <button class="btn btn-primary" onclick="openClientModal()">+ Add Client</button>
+            <button class="btn btn-primary" id="btn-add-client" onclick="openClientModal()">+ Add Client</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -935,8 +935,8 @@ function showView(id, btn){
   var titles={dashboard:'Dashboard',tasks:'Tasks',clients:'Clients',deadlines:'Deadlines',billing:'Billing & Fees',documents:'Documents',team:'Team',settings:'Settings',workchart:'Work Chart',recurring:'Recurring Setup',access:'Access Control'};
   // Permission gate
   var permGate={clients:'view_clients',billing:'view_billing',recurring:'manage_recurring',team:'view_team'};
-  if(id==='access'&&!isPartner()){ document.getElementById('view-access').innerHTML='<div class="card"><div class="empty-state"><div class="icon">🔒</div><p><strong>Partners Only</strong><br>Access Control is restricted to Partners.</p></div></div>'; }
-  else if(permGate[id]&&!hasPermission(permGate[id])){ var v=document.getElementById('view-'+id); if(v) v.innerHTML='<div class="card"><div class="empty-state"><div class="icon">🔒</div><p><strong>Access Restricted</strong><br>You do not have permission to view this section.<br>Please contact a Partner to request access.</p></div></div>'; return; }
+  if(id==='access'&&!isPartner()){ showView('dashboard',null); return; }
+  else if(permGate[id]&&!hasPermission(permGate[id])){ showView('dashboard',null); return; }
   document.getElementById('topbar-title').textContent=titles[id]||id;
   if(id==='tasks') renderTasks();
   if(id==='clients') renderClients();
@@ -1022,20 +1022,62 @@ function renderDashboard(){
 function renderTasks(){
   var fs=document.getElementById('task-filter-status').value;
   var fp=document.getElementById('task-filter-priority').value;
-  var data=(DB.tasks||[]).filter(function(t){return (!fs||t.status===fs)&&(!fp||t.priority===fp);});
+  var partner=isPartner();
+  var canSeeAll=partner||hasPermission('view_all_tasks');
+  var canCreate=partner||hasPermission('create_tasks');
+  var me=DB.currentUser?DB.currentUser.name:'';
+
+  // Show/hide New Task button
+  var nb=document.getElementById('btn-new-task');
+  if(nb) nb.style.display=canCreate?'':'none';
+
+  // Filter tasks
+  var data=(DB.tasks||[]).filter(function(t){
+    if(!canSeeAll && t.assignee!==me) return false;
+    return (!fs||t.status===fs)&&(!fp||t.priority===fp);
+  });
+
   var tbody=document.getElementById('tasks-tbody');
-  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">✅</div><p>No tasks found.</p></div></td></tr>'; return; }
+  if(!data.length){
+    var msg=canSeeAll?'No tasks found.':'No tasks assigned to you yet.';
+    tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">✅</div><p>'+msg+'</p></div></td></tr>';
+    return;
+  }
   tbody.innerHTML=data.sort(function(a,b){return new Date(a.due)-new Date(b.due);}).map(function(t){
     var days=daysUntil(t.due);
+    var isMyTask=(t.assignee===me);
+    // Actions: partners get full control; staff get status-update only on their own tasks
+    var actions='';
+    if(partner){
+      actions='<button class="btn btn-sm btn-outline" onclick="editTask('+t.id+')">Edit</button>'+
+              '<button class="btn btn-sm btn-gold" onclick="openTransfer('+t.id+')" title="Transfer">⇄</button>'+
+              '<button class="btn btn-sm btn-danger" onclick="deleteTask('+t.id+')">Del</button>';
+    } else if(isMyTask){
+      actions='<select onchange="quickStatusUpdate('+t.id+',this.value)" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;">'+
+              '<option value="">Update Status</option>'+
+              ['Todo','In Progress','In Review','Done'].map(function(s){return '<option value="'+s+'"'+(t.status===s?' selected':'')+'>'+s+'</option>';}).join('')+
+              '</select>';
+    }
     return '<tr><td><strong>'+esc(t.title)+'</strong><br><span style="font-size:11px;color:var(--muted);">'+esc(t.category)+'</span></td>'+
     '<td>'+esc(t.client||'—')+'</td>'+
     '<td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar-sm a1">'+initials(t.assignee)+'</div>'+esc(t.assignee||'—')+'</div></td>'+
     '<td><span class="priority-dot dot-'+t.priority.toLowerCase()+'"></span>'+t.priority+'</td>'+
-    '<td>'+fmtDate(t.due)+'<br><span style="font-size:11px;" class="deadline-days days-'+daysClass(days)+'" style="padding:2px 6px;">'+daysLabel(days)+'</span></td>'+
+    '<td>'+fmtDate(t.due)+'<br><span style="font-size:11px;" class="deadline-days days-'+daysClass(days)+'">'+daysLabel(days)+'</span></td>'+
     '<td><span class="badge badge-'+statusClass(t.status)+'">'+t.status+'</span></td>'+
-    '<td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editTask('+t.id+')">Edit</button><button class="btn btn-sm btn-gold" onclick="openTransfer('+t.id+')" title="Transfer to another member">⇄</button><button class="btn btn-sm btn-danger" onclick="deleteTask('+t.id+')">Del</button></td></tr>';
+    '<td class="td-actions">'+actions+'</td></tr>';
   }).join('');
   updateBadges();
+}
+function quickStatusUpdate(taskId, newStatus){
+  if(!newStatus) return;
+  var t=DB.tasks.find(function(x){return x.id===taskId;});
+  if(!t) return;
+  var me=DB.currentUser?DB.currentUser.name:'';
+  if(!isPartner()&&t.assignee!==me){ toast('You can only update your own tasks.','error'); return; }
+  var prev=t.status; t.status=newStatus;
+  logActivity('Updated status: "'+t.title+'" → '+newStatus);
+  save(); renderTasks(); renderDashboard();
+  toast('Status updated to '+newStatus+'!','success');
 }
 function openTaskModal(){ populateDropdowns(); document.getElementById('task-edit-id').value=''; document.getElementById('task-modal-title').textContent='New Task'; ['t-title','t-notes'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('t-due').value=today(); document.getElementById('modal-task').classList.add('open'); }
 function editTask(id){ populateDropdowns(); var t=DB.tasks.find(function(x){return x.id===id;}); if(!t)return; document.getElementById('task-edit-id').value=id; document.getElementById('task-modal-title').textContent='Edit Task'; document.getElementById('t-title').value=t.title; document.getElementById('t-client').value=t.client||''; document.getElementById('t-assignee').value=t.assignee||''; document.getElementById('t-priority').value=t.priority; document.getElementById('t-status').value=t.status; document.getElementById('t-due').value=t.due; document.getElementById('t-category').value=t.category; document.getElementById('t-notes').value=t.notes||''; document.getElementById('modal-task').classList.add('open'); }
@@ -1044,10 +1086,25 @@ function deleteTask(id){ if(!confirm('Delete this task?'))return; var t=DB.tasks
 
 // ── CLIENTS ──
 function renderClients(){
+  var partner=isPartner();
+  var addBtn=document.getElementById('btn-add-client');
+  if(addBtn) addBtn.style.display=partner?'':'none';
   var data=DB.clients||[];
   var tbody=document.getElementById('clients-tbody');
-  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">👥</div><p>No clients yet. Add your first client!</p></div></td></tr>'; return; }
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">👥</div><p>'+(partner?'No clients yet. Add your first client!':'No client data available.')+'</p></div></td></tr>'; return; }
   tbody.innerHTML=data.map(function(c){
+    // Non-partners: view only — no PAN/GSTIN/contact details shown, no action buttons
+    if(!partner){
+      return '<tr>'+
+        '<td><strong>'+esc(c.name)+'</strong></td>'+
+        '<td>'+esc(c.type)+'</td>'+
+        '<td><span style="font-size:12px;color:var(--muted);">— Restricted —</span></td>'+
+        '<td><span style="font-size:12px;color:var(--muted);">— Restricted —</span></td>'+
+        '<td>'+esc(c.service||'—')+'</td>'+
+        '<td><span class="badge badge-'+(c.status==='Active'?'active':'inactive')+'">'+c.status+'</span></td>'+
+        '<td><span style="font-size:11px;color:var(--muted);font-style:italic;">View Only</span></td>'+
+      '</tr>';
+    }
     return '<tr><td><strong>'+esc(c.name)+'</strong></td><td>'+esc(c.type)+'</td><td><span style="font-size:12px;">'+esc(c.pan||'—')+'</span><br><span style="font-size:11px;color:var(--muted);">'+esc(c.gstin||'—')+'</span></td><td>'+esc(c.contact||'—')+'<br><span style="font-size:12px;color:var(--muted);">'+esc(c.phone||'')+'</span></td><td>'+esc(c.service||'—')+'</td><td><span class="badge badge-'+(c.status==='Active'?'active':'inactive')+'">'+c.status+'</span></td><td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editClient('+c.id+')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteClient('+c.id+')">Del</button></td></tr>';
   }).join('');
 }
@@ -1178,7 +1235,8 @@ var PERM_DEFS=[
   {key:'view_all_tasks',label:'All Tasks'},
   {key:'manage_recurring',label:'Recurring'},
   {key:'view_team',label:'Team Mgmt'},
-  {key:'view_deadlines',label:'Deadlines'}
+  {key:'view_deadlines',label:'Deadlines'},
+  {key:'create_tasks',label:'Create Tasks'}
 ];
 function renderAccessControl(){
   var team=(DB.team||[]).filter(function(m){
