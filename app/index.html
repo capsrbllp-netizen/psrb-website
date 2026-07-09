@@ -240,6 +240,7 @@ tr:hover td{background:var(--cream);}
     <button class="nav-item" onclick="showView('access',this)" id="nav-access"><span class="icon">🔐</span> Access Control</button>
     <button class="nav-item" onclick="showView('settings',this)"><span class="icon">⚙️</span> Settings</button>
     <div class="sidebar-footer">
+      <div style="padding:0 4px 8px;"><span id="sidebar-branch" style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:0.3px;color:var(--gold);background:rgba(214,158,46,0.12);border:1px solid var(--gold);border-radius:20px;padding:3px 10px;">🏢 Branch</span></div>
       <div class="user-card">
         <div class="user-avatar" id="sidebar-avatar">PS</div>
         <div class="user-info">
@@ -529,7 +530,7 @@ tr:hover td{background:var(--cream);}
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Reports To</th><th>Specialisation</th><th>Active Tasks</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Branch</th><th>Reports To</th><th>Specialisation</th><th>Active Tasks</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="team-tbody"></tbody>
             </table>
           </div>
@@ -902,6 +903,7 @@ tr:hover td{background:var(--cream);}
       <div class="field"><label>Specialisation</label><input type="text" id="tm-spec" placeholder="e.g. GST & Income Tax"></div>
       <div class="field"><label>Reports To</label><select id="tm-reports"><option value="">— None (Top Level) —</option></select></div>
     </div>
+    <div class="field"><label>Branch / Office *</label><select id="tm-branch"></select></div>
     <div class="field"><label>System Password (for login)</label><input type="password" id="tm-pass" placeholder="Set login password"></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-team')">Cancel</button>
@@ -1003,10 +1005,10 @@ async function load(){
   // Seed team from partners if empty
   if(!DB.team || DB.team.length===0){
     DB.team=[
-      {id:1,name:'Pankaj Sahoo',role:'Managing Partner',email:'pankaj@psrb.com',phone:'+91-9437634787',spec:'Valuation, Treasury & Project Finance',pass:'Psrb@2025',active:true},
-      {id:2,name:'Saubhagya Ranjan Bal',role:'Partner',email:'saubhagya@psrb.com',phone:'',spec:'GST & Income Tax',pass:'Partner@123',active:true},
-      {id:3,name:'Laxmi Prasad Maharana',role:'Partner',email:'laxmi@psrb.com',phone:'',spec:'Industry & Process Advisory',pass:'Partner@123',active:true},
-      {id:4,name:'Rakesh Ranjan Pal',role:'Partner',email:'rakesh@psrb.com',phone:'',spec:'Audit & Assurance',pass:'Partner@123',active:true}
+      {id:1,name:'Pankaj Sahoo',role:'Managing Partner',email:'pankaj@psrb.com',phone:'+91-9437634787',spec:'Valuation, Treasury & Project Finance',pass:'Psrb@2025',active:true,branch:'Bhubaneswar Corporate'},
+      {id:2,name:'Saubhagya Ranjan Bal',role:'Partner',email:'saubhagya@psrb.com',phone:'',spec:'GST & Income Tax',pass:'Partner@123',active:true,branch:'Bhadrak'},
+      {id:3,name:'Laxmi Prasad Maharana',role:'Partner',email:'laxmi@psrb.com',phone:'',spec:'Industry & Process Advisory',pass:'Partner@123',active:true,branch:'Bhubaneswar Corporate'},
+      {id:4,name:'Rakesh Ranjan Pal',role:'Partner',email:'rakesh@psrb.com',phone:'',spec:'Audit & Assurance',pass:'Partner@123',active:true,branch:'Bhubaneswar Branch'}
     ];
     DB.nextId.team=5;
     save();
@@ -1046,6 +1048,39 @@ async function load(){
     save();
   }
 }
+var BRANCHES=['Bhubaneswar Corporate','Bhubaneswar Branch','Bhadrak'];
+var BRANCH_HEAD_MAP={
+  'Pankaj Sahoo':'Bhubaneswar Corporate',
+  'Laxmi Prasad Maharana':'Bhubaneswar Corporate',
+  'Rakesh Ranjan Pal':'Bhubaneswar Branch',
+  'Saubhagya Ranjan Bal':'Bhadrak'
+};
+function myBranch(){ return DB.currentUser?(DB.currentUser.branch||BRANCHES[0]):BRANCHES[0]; }
+function branchOfMember(name){ var m=(DB.team||[]).find(function(x){return x.name===name;}); return m&&m.branch; }
+function branchOfClient(name){ var c=(DB.clients||[]).find(function(x){return x.name===name;}); return c&&c.branch; }
+// One-time migration: stamp a branch onto any legacy record that predates branch isolation
+function migrateBranches(){
+  var changed=false;
+  (DB.team||[]).forEach(function(m){
+    if(!m.branch){ m.branch=BRANCH_HEAD_MAP[m.name]||BRANCHES[0]; changed=true; }
+  });
+  (DB.clients||[]).forEach(function(c){
+    if(!c.branch){ c.branch=branchOfMember(c.defaultAssignee)||BRANCHES[0]; changed=true; }
+  });
+  (DB.tasks||[]).forEach(function(t){
+    if(!t.branch){ t.branch=branchOfClient(t.client)||branchOfMember(t.assignee)||BRANCHES[0]; changed=true; }
+  });
+  (DB.billing||[]).forEach(function(b){
+    if(!b.branch){ b.branch=branchOfClient(b.client)||BRANCHES[0]; changed=true; }
+  });
+  (DB.deadlines||[]).forEach(function(d){
+    if(!d.branch){ d.branch=branchOfClient(d.client)||branchOfMember(d.assignee)||BRANCHES[0]; changed=true; }
+  });
+  (DB.documents||[]).forEach(function(doc){
+    if(!doc.branch){ doc.branch=branchOfClient(doc.client)||BRANCHES[0]; changed=true; }
+  });
+  if(changed) save();
+}
 function save(){
   var d=Object.assign({},DB); delete d.currentUser;
   FS_DOC.set(d).catch(function(e){ console.warn('Firestore save failed',e);
@@ -1070,6 +1105,9 @@ function doLogin(){
   }
   if(!u){ err.style.display='block'; return; }
   err.style.display='none';
+  // Always resolve branch from the Team roster (kept in sync if branch is reassigned later)
+  var teamMatch=(DB.team||[]).find(function(t){return (t.email||'').toLowerCase()===email;});
+  u.branch=(teamMatch&&teamMatch.branch)||BRANCH_HEAD_MAP[u.name]||BRANCHES[0];
   DB.currentUser=u;
   sessionStorage.setItem('psrb_session', JSON.stringify(u));
   save();
@@ -1079,6 +1117,7 @@ function doLogin(){
   document.getElementById('sidebar-avatar').textContent=ini;
   document.getElementById('sidebar-name').textContent=u.name;
   document.getElementById('sidebar-role').textContent=u.role;
+  var sb=document.getElementById('sidebar-branch'); if(sb) sb.textContent='🏢 '+(u.branch||'');
   document.getElementById('profile-avatar-lg').textContent=ini;
   document.getElementById('profile-name-lg').textContent=u.name;
   document.getElementById('profile-role-lg').textContent=u.role;
@@ -1137,17 +1176,17 @@ function refreshAll(){
 }
 
 function updateBadges(){
-  var pending=(DB.tasks||[]).filter(function(t){return t.status!=='Done';}).length;
+  var pending=(DB.tasks||[]).filter(function(t){return t.branch===myBranch()&&t.status!=='Done';}).length;
   var pb=document.getElementById('pending-badge');
   pb.textContent=pending; pb.style.display=pending>0?'':'none';
-  var overdue=(DB.deadlines||[]).filter(function(d){return daysUntil(d.date)<0;}).length;
+  var overdue=(DB.deadlines||[]).filter(function(d){return d.branch===myBranch()&&daysUntil(d.date)<0;}).length;
   var ob=document.getElementById('overdue-badge');
   ob.style.display=overdue>0?'':'none';
 }
 
 // ── DASHBOARD ──
 function renderDashboard(){
-  var tasks=DB.tasks||[], clients=DB.clients||[], deadlines=DB.deadlines||[], billing=DB.billing||[];
+  var tasks=(DB.tasks||[]).filter(function(t){return t.branch===myBranch();}), clients=(DB.clients||[]).filter(function(c){return c.branch===myBranch();}), deadlines=(DB.deadlines||[]).filter(function(d){return d.branch===myBranch();}), billing=(DB.billing||[]).filter(function(b){return b.branch===myBranch();});
   var activeTasks=tasks.filter(function(t){return t.status!=='Done';});
   var upcoming=deadlines.filter(function(d){return daysUntil(d.date)>=0 && daysUntil(d.date)<=30;});
   var pendingFees=billing.filter(function(b){return b.status!=='Paid';}).reduce(function(s,b){return s+(+b.amount||0);},0);
@@ -1236,8 +1275,9 @@ function renderTasks(){
   var nb=document.getElementById('btn-new-task');
   if(nb) nb.style.display=canCreate?'':'none';
 
-  // Filter tasks
+  // Filter tasks — branch isolation applies to everyone, including partners
   var data=(DB.tasks||[]).filter(function(t){
+    if(t.branch!==myBranch()) return false;
     if(!canSeeAll && t.assignee!==me) return false;
     if(!fs&&t.status==='Done') return false; // completed tasks live in Billing; view via "Completed & Billed" filter
     return (!fs||t.status===fs)&&(!fp||t.priority===fp);
@@ -1313,7 +1353,7 @@ function seniorOf(name){
 }
 function billTask(t, amt){
   if(!t.client||!amt||amt<=0) return;
-  DB.billing.push({id:DB.nextId.billing++,client:t.client,service:t.title,amount:amt,date:today(),due:'',status:'Pending',notes:'Auto-billed on task completion ('+(t.assignee||'')+')'});
+  DB.billing.push({id:DB.nextId.billing++,client:t.client,service:t.title,amount:amt,date:today(),due:'',status:'Pending',notes:'Auto-billed on task completion ('+(t.assignee||'')+')',branch:t.branch||myBranch()});
   logActivity('Auto-billed ₹'+amt.toLocaleString('en-IN')+' to '+t.client+' for "'+t.title+'"');
 }
 // Plain status changes (Todo / In Progress) — no time tracking involved. "Done" is handled by the Complete Task modal.
@@ -1491,7 +1531,7 @@ function saveTask(){
     var idx=DB.tasks.findIndex(function(x){return x.id==eid;});
     if(idx>=0){
       var old=DB.tasks[idx];
-      task.id=+eid; task.created=old.created; task.isRecurring=old.isRecurring; task.templateId=old.templateId; task.completedAt=old.completedAt;
+      task.id=+eid; task.created=old.created; task.isRecurring=old.isRecurring; task.templateId=old.templateId; task.completedAt=old.completedAt; task.branch=old.branch||myBranch();
       task.assignedBy=old.assignedBy; task.reviewer=old.reviewer; task.reviewedBy=old.reviewedBy; task.approvalPartner=old.approvalPartner; task.approvedBy=old.approvedBy; task.reviewedAt=old.reviewedAt; task.submittedAt=old.submittedAt;
       var becomingDone=(status==='Done'&&!wasDone);
       if(becomingDone){
@@ -1513,7 +1553,7 @@ function saveTask(){
       DB.tasks[idx]=task; logActivity('Updated task: '+title);
     }
   } else {
-    task.id=DB.nextId.task++; task.created=new Date().toISOString(); task.assignedBy=me;
+    task.id=DB.nextId.task++; task.created=new Date().toISOString(); task.assignedBy=me; task.branch=myBranch();
     DB.tasks.push(task);
     if(task.assignee&&task.assignee!==task.assignedBy) notify(task.assignee,'New task assigned to you: "'+title+'"'+(task.client?' for '+task.client:'')+(task.estHours?' (est. '+task.estHours+'h)':'')+' — due '+fmtDate(task.due));
     logActivity('Created task: '+title+(task.estHours?' (est. '+task.estHours+'h)':''));
@@ -1527,7 +1567,7 @@ function renderClients(){
   var partner=isPartner();
   var addBtn=document.getElementById('btn-add-client');
   if(addBtn) addBtn.style.display=partner?'':'none';
-  var data=DB.clients||[];
+  var data=(DB.clients||[]).filter(function(c){return c.branch===myBranch();});
   var tbody=document.getElementById('clients-tbody');
   if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">👥</div><p>'+(partner?'No clients yet. Add your first client!':'No client data available.')+'</p></div></td></tr>'; return; }
   tbody.innerHTML=data.map(function(c){
@@ -1548,7 +1588,7 @@ function renderClients(){
 }
 function openClientModal(){ populateDropdowns(); document.getElementById('client-edit-id').value=''; document.getElementById('client-modal-title').textContent='Add Client'; ['c-name','c-pan','c-gst','c-contact','c-phone','c-email','c-address','c-it-user','c-it-pass','c-gst-user','c-gst-pass'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('c-fee').value=''; document.getElementById('c-status').value='Active'; document.getElementById('c-assignee').value=''; setClientCompliance([]); document.getElementById('modal-client').classList.add('open'); }
 function editClient(id){ populateDropdowns(); var c=DB.clients.find(function(x){return x.id===id;}); if(!c)return; document.getElementById('client-edit-id').value=id; document.getElementById('client-modal-title').textContent='Edit Client'; document.getElementById('c-name').value=c.name; document.getElementById('c-type').value=c.type; document.getElementById('c-pan').value=c.pan||''; document.getElementById('c-gst').value=c.gstin||''; document.getElementById('c-contact').value=c.contact||''; document.getElementById('c-phone').value=c.phone||''; document.getElementById('c-email').value=c.email||''; document.getElementById('c-service').value=c.service; document.getElementById('c-fee').value=c.fee||''; document.getElementById('c-status').value=c.status; document.getElementById('c-address').value=c.address||''; document.getElementById('c-it-user').value=c.itUser||''; document.getElementById('c-it-pass').value=c.itPass||''; document.getElementById('c-gst-user').value=c.gstUser||''; document.getElementById('c-gst-pass').value=c.gstPass||''; document.getElementById('c-assignee').value=c.defaultAssignee||''; setClientCompliance(c.recurringServices||[]); document.getElementById('modal-client').classList.add('open'); }
-function saveClient(){ var name=document.getElementById('c-name').value.trim(); if(!name){alert('Client name required.');return;} var eid=document.getElementById('client-edit-id').value; var cl={name:name,type:document.getElementById('c-type').value,pan:document.getElementById('c-pan').value.toUpperCase(),gstin:document.getElementById('c-gst').value,contact:document.getElementById('c-contact').value,phone:document.getElementById('c-phone').value,email:document.getElementById('c-email').value,service:document.getElementById('c-service').value,fee:document.getElementById('c-fee').value,status:document.getElementById('c-status').value,address:document.getElementById('c-address').value,itUser:document.getElementById('c-it-user').value.trim(),itPass:document.getElementById('c-it-pass').value,gstUser:document.getElementById('c-gst-user').value.trim(),gstPass:document.getElementById('c-gst-pass').value,recurringServices:getClientCompliance(),defaultAssignee:document.getElementById('c-assignee').value}; if(eid){var idx=DB.clients.findIndex(function(x){return x.id==eid;});if(idx>=0){cl.id=+eid;DB.clients[idx]=cl;logActivity('Updated client: '+name);}}else{cl.id=DB.nextId.client++;DB.clients.push(cl);logActivity('Added client: '+name+' with '+cl.recurringServices.length+' recurring compliance(s)');} save(); var newTasks=generateClientRecurringTasks(); closeModal('modal-client');renderClients();renderDashboard(); toast('Client saved!'+(newTasks>0?' '+newTasks+' recurring tasks created.':''),'success'); }
+function saveClient(){ var name=document.getElementById('c-name').value.trim(); if(!name){alert('Client name required.');return;} var eid=document.getElementById('client-edit-id').value; var cl={name:name,type:document.getElementById('c-type').value,pan:document.getElementById('c-pan').value.toUpperCase(),gstin:document.getElementById('c-gst').value,contact:document.getElementById('c-contact').value,phone:document.getElementById('c-phone').value,email:document.getElementById('c-email').value,service:document.getElementById('c-service').value,fee:document.getElementById('c-fee').value,status:document.getElementById('c-status').value,address:document.getElementById('c-address').value,itUser:document.getElementById('c-it-user').value.trim(),itPass:document.getElementById('c-it-pass').value,gstUser:document.getElementById('c-gst-user').value.trim(),gstPass:document.getElementById('c-gst-pass').value,recurringServices:getClientCompliance(),defaultAssignee:document.getElementById('c-assignee').value}; if(eid){var idx=DB.clients.findIndex(function(x){return x.id==eid;});if(idx>=0){cl.id=+eid;cl.branch=DB.clients[idx].branch||myBranch();DB.clients[idx]=cl;logActivity('Updated client: '+name);}}else{cl.id=DB.nextId.client++;cl.branch=myBranch();DB.clients.push(cl);logActivity('Added client: '+name+' with '+cl.recurringServices.length+' recurring compliance(s)');} save(); var newTasks=generateClientRecurringTasks(); closeModal('modal-client');renderClients();renderDashboard(); toast('Client saved!'+(newTasks>0?' '+newTasks+' recurring tasks created.':''),'success'); }
 function deleteClient(id){ if(!confirm('Delete this client?'))return; var c=DB.clients.find(function(x){return x.id===id;}); DB.clients=DB.clients.filter(function(x){return x.id!==id;}); logActivity('Deleted client: '+(c?c.name:'')); save();renderClients();renderDashboard();toast('Client deleted.'); }
 function openClientCreds(id){
   if(!isPartner()){ toast('Only Partners can view client credentials.','error'); return; }
@@ -1576,7 +1616,7 @@ function copyCred(fieldId){
 
 // ── DEADLINES ──
 function renderDeadlines(){
-  var data=(DB.deadlines||[]).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+  var data=(DB.deadlines||[]).filter(function(d){return d.branch===myBranch();}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
   var el=document.getElementById('deadlines-list');
   if(!data.length){ el.innerHTML='<div class="empty-state"><div class="icon">📅</div><p>No custom deadlines added yet.</p></div>'; return; }
   el.innerHTML=data.map(function(d){
@@ -1588,12 +1628,12 @@ function renderDeadlines(){
   }).join('');
 }
 function openDeadlineModal(){ populateDropdowns(); document.getElementById('dl-edit-id').value=''; ['dl-title','dl-notes'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('dl-date').value=today(); document.getElementById('modal-deadline').classList.add('open'); }
-function saveDeadline(){ var title=document.getElementById('dl-title').value.trim(); var date=document.getElementById('dl-date').value; if(!title||!date){alert('Title and date required.');return;} var d={id:DB.nextId.deadline++,title:title,date:date,client:document.getElementById('dl-client').value,category:document.getElementById('dl-cat').value,assignee:document.getElementById('dl-assignee').value,notes:document.getElementById('dl-notes').value}; DB.deadlines.push(d); logActivity('Added deadline: '+title); save();closeModal('modal-deadline');renderDeadlines();renderDashboard();updateBadges();toast('Deadline saved!','success'); }
+function saveDeadline(){ var title=document.getElementById('dl-title').value.trim(); var date=document.getElementById('dl-date').value; if(!title||!date){alert('Title and date required.');return;} var d={id:DB.nextId.deadline++,title:title,date:date,client:document.getElementById('dl-client').value,category:document.getElementById('dl-cat').value,assignee:document.getElementById('dl-assignee').value,notes:document.getElementById('dl-notes').value,branch:myBranch()}; DB.deadlines.push(d); logActivity('Added deadline: '+title); save();closeModal('modal-deadline');renderDeadlines();renderDashboard();updateBadges();toast('Deadline saved!','success'); }
 function deleteDeadline(id){ if(!confirm('Delete this deadline?'))return; DB.deadlines=DB.deadlines.filter(function(x){return x.id!==id;}); save();renderDeadlines();renderDashboard();updateBadges();toast('Deadline deleted.'); }
 
 // ── BILLING ──
 function renderBilling(){
-  var data=DB.billing||[];
+  var data=(DB.billing||[]).filter(function(b){return b.branch===myBranch();});
   var total=data.reduce(function(s,b){return s+(+b.amount||0);},0);
   var paid=data.filter(function(b){return b.status==='Paid';}).reduce(function(s,b){return s+(+b.amount||0);},0);
   document.getElementById('b-billed').textContent='₹'+total.toLocaleString('en-IN');
@@ -1607,13 +1647,13 @@ function renderBilling(){
   }).join('');
 }
 function openBillingModal(){ populateDropdowns(); document.getElementById('bill-edit-id').value=''; document.getElementById('billing-modal-title').textContent='Raise Invoice'; document.getElementById('bill-amount').value=''; document.getElementById('bill-notes').value=''; document.getElementById('bill-date').value=today(); document.getElementById('bill-due').value=''; document.getElementById('bill-status').value='Pending'; document.getElementById('modal-billing').classList.add('open'); }
-function saveBilling(){ var client=document.getElementById('bill-client').value; var amt=document.getElementById('bill-amount').value; if(!client||!amt){alert('Client and amount required.');return;} var b={id:DB.nextId.billing++,client:client,service:document.getElementById('bill-service').value,amount:amt,date:document.getElementById('bill-date').value,due:document.getElementById('bill-due').value,status:document.getElementById('bill-status').value,notes:document.getElementById('bill-notes').value}; DB.billing.push(b); logActivity('Raised invoice ₹'+amt+' for '+client); save();closeModal('modal-billing');renderBilling();renderDashboard();toast('Invoice saved!','success'); }
+function saveBilling(){ var client=document.getElementById('bill-client').value; var amt=document.getElementById('bill-amount').value; if(!client||!amt){alert('Client and amount required.');return;} var b={id:DB.nextId.billing++,client:client,service:document.getElementById('bill-service').value,amount:amt,date:document.getElementById('bill-date').value,due:document.getElementById('bill-due').value,status:document.getElementById('bill-status').value,notes:document.getElementById('bill-notes').value,branch:myBranch()}; DB.billing.push(b); logActivity('Raised invoice ₹'+amt+' for '+client); save();closeModal('modal-billing');renderBilling();renderDashboard();toast('Invoice saved!','success'); }
 function markPaid(id){ var b=DB.billing.find(function(x){return x.id===id;}); if(b){b.status='Paid';logActivity('Invoice INV-'+String(id).padStart(4,'0')+' marked as paid');save();renderBilling();renderDashboard();toast('Marked as paid!','success');} }
 function deleteBill(id){ if(!confirm('Delete this invoice?'))return; DB.billing=DB.billing.filter(function(x){return x.id!==id;}); save();renderBilling();renderDashboard();toast('Invoice deleted.'); }
 
 // ── DOCUMENTS ──
 function renderDocs(){
-  var data=DB.documents||[];
+  var data=(DB.documents||[]).filter(function(d){return d.branch===myBranch();});
   var tbody=document.getElementById('docs-tbody');
   if(!data.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="icon">📁</div><p>No documents logged yet.</p></div></td></tr>'; return; }
   tbody.innerHTML=data.sort(function(a,b){return new Date(b.date)-new Date(a.date);}).map(function(d){
@@ -1621,28 +1661,28 @@ function renderDocs(){
   }).join('');
 }
 function openDocModal(){ populateDropdowns(); document.getElementById('doc-edit-id').value=''; ['doc-name','doc-notes'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('doc-date').value=today(); document.getElementById('modal-doc').classList.add('open'); }
-function saveDoc(){ var name=document.getElementById('doc-name').value.trim(); if(!name){alert('Document name required.');return;} var d={id:DB.nextId.doc++,name:name,client:document.getElementById('doc-client').value,type:document.getElementById('doc-type').value,date:document.getElementById('doc-date').value,status:document.getElementById('doc-status').value,notes:document.getElementById('doc-notes').value}; DB.documents.push(d); logActivity('Logged document: '+name); save();closeModal('modal-doc');renderDocs();toast('Document saved!','success'); }
+function saveDoc(){ var name=document.getElementById('doc-name').value.trim(); if(!name){alert('Document name required.');return;} var d={id:DB.nextId.doc++,name:name,client:document.getElementById('doc-client').value,type:document.getElementById('doc-type').value,date:document.getElementById('doc-date').value,status:document.getElementById('doc-status').value,notes:document.getElementById('doc-notes').value,branch:myBranch()}; DB.documents.push(d); logActivity('Logged document: '+name); save();closeModal('modal-doc');renderDocs();toast('Document saved!','success'); }
 function deleteDoc(id){ if(!confirm('Delete?'))return; DB.documents=DB.documents.filter(function(x){return x.id!==id;}); save();renderDocs();toast('Deleted.'); }
 
 // ── TEAM ──
 function renderTeam(){
-  var data=DB.team||[];
+  var data=(DB.team||[]).filter(function(m){return m.branch===myBranch();});
   var partner=isPartner();
   var tbody=document.getElementById('team-tbody');
-  if(!data.length){ tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">🧑‍💼</div><p>No team members.</p></div></td></tr>'; }
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="9"><div class="empty-state"><div class="icon">🧑‍💼</div><p>No team members.</p></div></td></tr>'; }
   else{
     tbody.innerHTML=data.map(function(m){
       var activeTasks=(DB.tasks||[]).filter(function(t){return t.assignee===m.name&&t.status!=='Done';}).length;
       var actions='<button class="btn btn-sm btn-outline" onclick="editTeam('+m.id+')">Edit</button>';
       if(partner) actions+='<button class="btn btn-sm btn-danger" onclick="deleteTeam('+m.id+')">Del</button>';
-      return '<tr><td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar-sm a1">'+initials(m.name)+'</div><strong>'+esc(m.name)+'</strong></div></td><td>'+esc(m.role)+'</td><td>'+esc(m.email||'—')+'</td><td>'+esc(m.reportsTo||'—')+'</td><td>'+esc(m.spec||'—')+'</td><td><span style="font-weight:700;color:'+(activeTasks>3?'var(--red)':'var(--green)')+'">'+activeTasks+'</span></td><td><span class="badge badge-active">Active</span></td><td class="td-actions">'+actions+'</td></tr>';
+      return '<tr><td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar-sm a1">'+initials(m.name)+'</div><strong>'+esc(m.name)+'</strong></div></td><td>'+esc(m.role)+'</td><td>'+esc(m.email||'—')+'</td><td><span style="font-size:12px;">'+esc(m.branch||'—')+'</span></td><td>'+esc(m.reportsTo||'—')+'</td><td>'+esc(m.spec||'—')+'</td><td><span style="font-weight:700;color:'+(activeTasks>3?'var(--red)':'var(--green)')+'">'+activeTasks+'</span></td><td><span class="badge badge-active">Active</span></td><td class="td-actions">'+actions+'</td></tr>';
     }).join('');
   }
   renderOrgChart();
 }
 function renderOrgChart(){
   var el=document.getElementById('org-chart'); if(!el) return;
-  var team=DB.team||[];
+  var team=(DB.team||[]).filter(function(m){return m.branch===myBranch();});
   if(!team.length){ el.innerHTML='<div class="empty-state"><div class="icon">🏛️</div><p>Add team members and set "Reports To" to build the structure.</p></div>'; return; }
   // Build tree: top-level = no reportsTo (or reportsTo not found in team)
   var names=team.map(function(m){return m.name;});
@@ -1665,12 +1705,13 @@ function renderOrgChart(){
 }
 function populateReportsTo(excludeId){
   var sel=document.getElementById('tm-reports'); if(!sel) return;
-  var team=(DB.team||[]).filter(function(m){return m.id!=excludeId;});
+  var team=(DB.team||[]).filter(function(m){return m.id!=excludeId&&m.branch===myBranch();});
   sel.innerHTML='<option value="">— None (Top Level) —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+' ('+esc(m.role)+')</option>';}).join('');
 }
-function openTeamModal(){ populateReportsTo(null); document.getElementById('tm-edit-id').value=''; document.getElementById('team-modal-title').textContent='Add Team Member'; ['tm-name','tm-email','tm-phone','tm-spec','tm-pass'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('tm-reports').value=''; document.getElementById('modal-team').classList.add('open'); }
-function editTeam(id){ var m=DB.team.find(function(x){return x.id===id;}); if(!m)return; populateReportsTo(id); document.getElementById('tm-edit-id').value=id; document.getElementById('team-modal-title').textContent='Edit Member'; document.getElementById('tm-name').value=m.name; document.getElementById('tm-role').value=m.role; document.getElementById('tm-email').value=m.email||''; document.getElementById('tm-phone').value=m.phone||''; document.getElementById('tm-spec').value=m.spec||''; document.getElementById('tm-reports').value=m.reportsTo||''; document.getElementById('modal-team').classList.add('open'); }
-function saveTeam(){ var name=document.getElementById('tm-name').value.trim(); if(!name){alert('Name required.');return;} var eid=document.getElementById('tm-edit-id').value; var m={name:name,role:document.getElementById('tm-role').value,email:document.getElementById('tm-email').value,phone:document.getElementById('tm-phone').value,spec:document.getElementById('tm-spec').value,reportsTo:document.getElementById('tm-reports').value,active:true}; if(document.getElementById('tm-pass').value) m.pass=document.getElementById('tm-pass').value; if(eid){var idx=DB.team.findIndex(function(x){return x.id==eid;});if(idx>=0){var oldName=DB.team[idx].name;m.id=+eid;if(!m.pass)m.pass=DB.team[idx].pass;DB.team[idx]=m;if(oldName!==name){DB.team.forEach(function(x){if(x.reportsTo===oldName)x.reportsTo=name;});}logActivity('Updated team member: '+name);}}else{m.id=DB.nextId.team++;DB.team.push(m);logActivity('Added team member: '+name);} save();closeModal('modal-team');renderTeam();toast('Team member saved!','success'); }
+function populateBranchSelect(selected){ var sel=document.getElementById('tm-branch'); if(!sel) return; sel.innerHTML=BRANCHES.map(function(b){return '<option value="'+esc(b)+'"'+(b===selected?' selected':'')+'>'+esc(b)+'</option>';}).join(''); }
+function openTeamModal(){ populateReportsTo(null); document.getElementById('tm-edit-id').value=''; document.getElementById('team-modal-title').textContent='Add Team Member'; ['tm-name','tm-email','tm-phone','tm-spec','tm-pass'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('tm-reports').value=''; populateBranchSelect(myBranch()); document.getElementById('modal-team').classList.add('open'); }
+function editTeam(id){ var m=DB.team.find(function(x){return x.id===id;}); if(!m)return; populateReportsTo(id); document.getElementById('tm-edit-id').value=id; document.getElementById('team-modal-title').textContent='Edit Member'; document.getElementById('tm-name').value=m.name; document.getElementById('tm-role').value=m.role; document.getElementById('tm-email').value=m.email||''; document.getElementById('tm-phone').value=m.phone||''; document.getElementById('tm-spec').value=m.spec||''; document.getElementById('tm-reports').value=m.reportsTo||''; populateBranchSelect(m.branch||myBranch()); document.getElementById('modal-team').classList.add('open'); }
+function saveTeam(){ var name=document.getElementById('tm-name').value.trim(); if(!name){alert('Name required.');return;} var eid=document.getElementById('tm-edit-id').value; var m={name:name,role:document.getElementById('tm-role').value,email:document.getElementById('tm-email').value,phone:document.getElementById('tm-phone').value,spec:document.getElementById('tm-spec').value,reportsTo:document.getElementById('tm-reports').value,branch:document.getElementById('tm-branch').value,active:true}; if(document.getElementById('tm-pass').value) m.pass=document.getElementById('tm-pass').value; if(eid){var idx=DB.team.findIndex(function(x){return x.id==eid;});if(idx>=0){var oldName=DB.team[idx].name;m.id=+eid;if(!m.pass)m.pass=DB.team[idx].pass;DB.team[idx]=m;if(oldName!==name){DB.team.forEach(function(x){if(x.reportsTo===oldName)x.reportsTo=name;});}logActivity('Updated team member: '+name);}}else{m.id=DB.nextId.team++;DB.team.push(m);logActivity('Added team member: '+name);} save();closeModal('modal-team');renderTeam();toast('Team member saved!','success'); }
 function deleteTeam(id){
   if(!isPartner()){ toast('Only Partners can remove team members.','error'); return; }
   var m=DB.team.find(function(x){return x.id===id;}); if(!m) return;
@@ -1696,7 +1737,8 @@ function clearData(){ if(!confirm('This will DELETE all data. Are you sure?'))re
 
 // ── HELPERS ──
 function populateDropdowns(){
-  var clients=DB.clients||[]; var team=DB.team||[];
+  var clients=(DB.clients||[]).filter(function(c){return c.branch===myBranch();});
+  var team=(DB.team||[]).filter(function(m){return m.branch===myBranch();});
   var cOpts='<option value="">— None —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
   var tOpts='<option value="">— Unassigned —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>';}).join('');
   var tOptsTransfer='<option value="">— Select Member —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>';}).join('');
@@ -1769,7 +1811,7 @@ var PERM_DEFS=[
 ];
 function renderAccessControl(){
   var team=(DB.team||[]).filter(function(m){
-    return !m.role||!(m.role.toLowerCase().includes('partner')||m.role.toLowerCase().includes('managing'));
+    return m.branch===myBranch()&&(!m.role||!(m.role.toLowerCase().includes('partner')||m.role.toLowerCase().includes('managing')));
   });
   var tbody=document.getElementById('access-tbody');
   if(!team.length){
@@ -1829,7 +1871,7 @@ function generateClientRecurringTasks(){
         var dueDate=dueYr+'-'+String(dueMo+1).padStart(2,'0')+'-'+String(svc.dueDay).padStart(2,'0');
         var task={id:DB.nextId.task++,title:svc.name+' — '+client.name+' — '+now.toLocaleString('default',{month:'long'})+' '+yr,
           assignee:assignee,category:svc.category,priority:'High',status:'Todo',due:dueDate,client:client.name,
-          notes:'Auto-generated client recurring task',isRecurring:true,isClientRecurring:true,created:new Date().toISOString()};
+          notes:'Auto-generated client recurring task',isRecurring:true,isClientRecurring:true,created:new Date().toISOString(),branch:client.branch||myBranch()};
         DB.tasks.push(task);
         DB.clientRecurringGenerated[key]=task.id;
         logActivity('Auto-created: '+task.title);
@@ -1844,7 +1886,7 @@ function generateClientRecurringTasks(){
         var dueDate=yr+'-'+parts[0]+'-'+parts[1];
         var task={id:DB.nextId.task++,title:svc.name+' '+(labels[qIdx]||'')+'— '+client.name+' — '+yr,
           assignee:assignee,category:svc.category,priority:'High',status:'Todo',due:dueDate,client:client.name,
-          notes:'Auto-generated quarterly task',isRecurring:true,isClientRecurring:true,created:new Date().toISOString()};
+          notes:'Auto-generated quarterly task',isRecurring:true,isClientRecurring:true,created:new Date().toISOString(),branch:client.branch||myBranch()};
         DB.tasks.push(task);
         DB.clientRecurringGenerated[key]=task.id;
         logActivity('Auto-created: '+task.title);
@@ -1859,7 +1901,7 @@ function generateClientRecurringTasks(){
         var dueDate=dueYr+'-'+parts[0]+'-'+parts[1];
         var task={id:DB.nextId.task++,title:svc.name+' — '+client.name+' — FY '+yr+'-'+(yr+1),
           assignee:assignee,category:svc.category,priority:'Medium',status:'Todo',due:dueDate,client:client.name,
-          notes:'Auto-generated annual task',isRecurring:true,isClientRecurring:true,created:new Date().toISOString()};
+          notes:'Auto-generated annual task',isRecurring:true,isClientRecurring:true,created:new Date().toISOString(),branch:client.branch||myBranch()};
         DB.tasks.push(task);
         DB.clientRecurringGenerated[key]=task.id;
         logActivity('Auto-created: '+task.title);
@@ -1971,7 +2013,8 @@ function generateRecurringTasks(){
       notes:'Auto-generated recurring task',
       isRecurring:true,
       templateId:tmpl.id,
-      created:new Date().toISOString()
+      created:new Date().toISOString(),
+      branch:branchOfMember(tmpl.assignee)||myBranch()
     };
     DB.tasks.push(task);
     tmpl.generated[period]=task.id;
@@ -2065,8 +2108,8 @@ function addCustomRecurring(){
 // ── WORK CHART ──
 function renderWorkChart(){
   var filter=document.getElementById('wc-filter').value;
-  var team=DB.team||[];
-  var allTasks=DB.tasks||[];
+  var team=(DB.team||[]).filter(function(m){return m.branch===myBranch();});
+  var allTasks=(DB.tasks||[]).filter(function(t){return t.branch===myBranch();});
   var tasks=allTasks.filter(function(t){
     if(filter==='active') return t.status!=='Done';
     if(filter==='overdue') return t.status!=='Done' && daysUntil(t.due)<0;
@@ -2379,7 +2422,7 @@ function openTemplateJobNew(){
   var t=getTemplates().find(function(x){return x.id===_tplCurrentId;}); if(!t) return;
   document.getElementById('tpj-tpl-id').value=t.id;
   document.getElementById('tpj-tpl-name').value=t.title;
-  var clients=DB.clients||[], team=DB.team||[];
+  var clients=(DB.clients||[]).filter(function(c){return c.branch===myBranch();}), team=(DB.team||[]).filter(function(m){return m.branch===myBranch();});
   document.getElementById('tpj-client').innerHTML='<option value="">— Select Client —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
   document.getElementById('tpj-assignee').innerHTML='<option value="">— Select Member —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>';}).join('');
   closeModal('modal-template');
@@ -2396,7 +2439,7 @@ function startTemplateJob(){
   var job={id:Date.now(),tplId:tplId,tplTitle:t.title,client:client,assignee:assignee,started:new Date().toISOString(),docs:{},steps:{},status:'In Progress'};
   // Also create a linked task so it shows up in the assignee's Tasks list
   if(!DB.tasks) DB.tasks=[];
-  var task={id:DB.nextId.task++,title:t.title+' — '+client,client:client,assignee:assignee,priority:'Medium',status:'In Progress',due:today(),category:t.category||'Other',notes:'Auto-created from Work Template. Track the document checklist and steps under Work Templates → Active Client Jobs.',estHours:0,actualHours:0,overtimeReason:'',created:new Date().toISOString(),assignedBy:me,isTemplateJob:true,templateJobId:job.id};
+  var task={id:DB.nextId.task++,title:t.title+' — '+client,client:client,assignee:assignee,priority:'Medium',status:'In Progress',due:today(),category:t.category||'Other',notes:'Auto-created from Work Template. Track the document checklist and steps under Work Templates → Active Client Jobs.',estHours:0,actualHours:0,overtimeReason:'',created:new Date().toISOString(),assignedBy:me,branch:myBranch(),isTemplateJob:true,templateJobId:job.id};
   DB.tasks.push(task);
   job.taskId=task.id;
   DB.templateJobs.push(job);
@@ -2542,6 +2585,7 @@ document.querySelectorAll('.modal-overlay').forEach(function(el){
 // ── INIT ──
 (async function(){
 await load();
+migrateBranches();
 // Restore session only from sessionStorage (clears when browser tab closes)
 var _sess = sessionStorage.getItem('psrb_session');
 if(_sess){ try{ var u=JSON.parse(_sess); DB.currentUser=u;
@@ -2551,6 +2595,7 @@ if(_sess){ try{ var u=JSON.parse(_sess); DB.currentUser=u;
   document.getElementById('sidebar-avatar').textContent=ini;
   document.getElementById('sidebar-name').textContent=u.name||'';
   document.getElementById('sidebar-role').textContent=u.role||'';
+  var sb2=document.getElementById('sidebar-branch'); if(sb2) sb2.textContent='🏢 '+(u.branch||'');
   document.getElementById('profile-avatar-lg').textContent=ini;
   document.getElementById('profile-name-lg').textContent=u.name||'';
   document.getElementById('profile-role-lg').textContent=u.role||'';
