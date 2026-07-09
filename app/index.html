@@ -1189,7 +1189,7 @@ function updateBadges(){
 
 // ── DASHBOARD ──
 function renderDashboard(){
-  var tasks=(DB.tasks||[]).filter(function(t){return t.branch===myBranch();}), clients=(DB.clients||[]).filter(function(c){return c.branch===myBranch();}), deadlines=DB.deadlines||[], billing=(DB.billing||[]).filter(function(b){return b.branch===myBranch();});
+  var tasks=(DB.tasks||[]).filter(function(t){return t.branch===myBranch()||t.sharedWithBranch===myBranch();}), clients=(DB.clients||[]).filter(function(c){return c.branch===myBranch();}), deadlines=DB.deadlines||[], billing=(DB.billing||[]).filter(function(b){return b.branch===myBranch();});
   var activeTasks=tasks.filter(function(t){return t.status!=='Done';});
   var upcoming=deadlines.filter(function(d){return daysUntil(d.date)>=0 && daysUntil(d.date)<=30;});
   var pendingFees=billing.filter(function(b){return b.status!=='Paid';}).reduce(function(s,b){return s+(+b.amount||0);},0);
@@ -1278,10 +1278,13 @@ function renderTasks(){
   var nb=document.getElementById('btn-new-task');
   if(nb) nb.style.display=canCreate?'':'none';
 
-  // Filter tasks — branch isolation applies to everyone, including partners
+  // Filter tasks — branch isolation applies to everyone, including partners.
+  // Exception: a task cross-branch-transferred stays visible (read-only) to the branch that shared it away.
   var data=(DB.tasks||[]).filter(function(t){
-    if(t.branch!==myBranch()) return false;
-    if(!canSeeAll && t.assignee!==me) return false;
+    var owned=t.branch===myBranch();
+    var sharedIn=t.sharedWithBranch===myBranch();
+    if(!owned&&!sharedIn) return false;
+    if(!canSeeAll && t.assignee!==me && !sharedIn) return false;
     if(!fs&&t.status==='Done') return false; // completed tasks live in Billing; view via "Completed & Billed" filter
     return (!fs||t.status===fs)&&(!fp||t.priority===fp);
   });
@@ -1295,9 +1298,13 @@ function renderTasks(){
   tbody.innerHTML=data.sort(function(a,b){return new Date(a.due)-new Date(b.due);}).map(function(t){
     var days=daysUntil(t.due);
     var isMyTask=(t.assignee===me);
+    var isSharedView=(t.branch!==myBranch())&&(t.sharedWithBranch===myBranch()); // viewing via cross-branch share — read-only
     // Actions per workflow stage: Staff completes → Senior reviews → Partner approves & bills
     var actions='';
     var isReviewer=(t.reviewer===me)||(isSeniorManager()&&!partner);
+    if(isSharedView){
+      actions='<span style="font-size:11px;color:var(--muted);font-style:italic;">🔗 Owned by '+esc(t.branch)+' — view only</span>';
+    } else {
     if(t.status==='In Review'&&(partner||isReviewer)&&!isMyTask){
       actions+='<button class="btn btn-sm btn-gold" onclick="approveReview('+t.id+')" title="Approve and send to Partner">✓ To Partner</button>'+
                '<button class="btn btn-sm btn-outline" onclick="returnTask('+t.id+')" title="Return to staff for rework">↩</button> ';
@@ -1319,6 +1326,7 @@ function renderTasks(){
     } else if(isMyTask&&(t.status==='In Review'||t.status==='Partner Approval')){
       actions+='<span style="font-size:11px;color:var(--muted);font-style:italic;">'+(t.status==='In Review'?'With '+esc(t.reviewer||'senior')+' for review':'Awaiting Partner approval')+'</span>';
     }
+    }
     var timeInfo='';
     if(t.estHours||t.actualHours){
       var over=t.estHours&&t.actualHours&&t.actualHours>t.estHours;
@@ -1336,7 +1344,8 @@ function renderTasks(){
         tplInfo='<br><span style="font-size:11px;color:var(--gold);cursor:pointer;" onclick="openTemplateJob('+job.id+')" title="Open document & step checklist">📋 Checklist: '+gotDocs+'/'+totalDocs+' docs · '+doneSteps+'/'+totalSteps+' steps</span>';
       }
     }
-    return '<tr><td><strong>'+esc(t.title)+'</strong><br><span style="font-size:11px;color:var(--muted);">'+esc(t.category)+'</span>'+timeInfo+tplInfo+'</td>'+
+    var branchTag=t.sharedWithBranch?'<span style="font-size:10px;background:var(--gold);color:#fff;border-radius:4px;padding:1px 5px;margin-left:6px;" title="'+(isSharedView?'Owned by '+esc(t.branch):'Shared with '+esc(t.sharedWithBranch))+'">🔗 '+(isSharedView?esc(t.branch):esc(t.sharedWithBranch))+'</span>':'';
+    return '<tr><td><strong>'+esc(t.title)+'</strong>'+branchTag+'<br><span style="font-size:11px;color:var(--muted);">'+esc(t.category)+'</span>'+timeInfo+tplInfo+'</td>'+
     '<td>'+esc(t.client||'—')+'</td>'+
     '<td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar-sm a1">'+initials(t.assignee)+'</div>'+esc(t.assignee||'—')+'</div></td>'+
     '<td><span class="priority-dot dot-'+t.priority.toLowerCase()+'"></span>'+t.priority+'</td>'+
@@ -1676,8 +1685,10 @@ function renderTeam(){
   else{
     tbody.innerHTML=data.map(function(m){
       var activeTasks=(DB.tasks||[]).filter(function(t){return t.assignee===m.name&&t.status!=='Done';}).length;
-      var actions='<button class="btn btn-sm btn-outline" onclick="editTeam('+m.id+')">Edit</button>';
+      var actions='';
+      if(canEditMember(m.id)) actions+='<button class="btn btn-sm btn-outline" onclick="editTeam('+m.id+')">Edit</button>';
       if(partner) actions+='<button class="btn btn-sm btn-danger" onclick="deleteTeam('+m.id+')">Del</button>';
+      if(!actions) actions='<span style="font-size:11px;color:var(--muted);font-style:italic;">No access</span>';
       return '<tr><td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar-sm a1">'+initials(m.name)+'</div><strong>'+esc(m.name)+'</strong></div></td><td>'+esc(m.role)+'</td><td>'+esc(m.email||'—')+'</td><td><span style="font-size:12px;">'+esc(m.branch||'—')+'</span></td><td>'+esc(m.reportsTo||'—')+'</td><td>'+esc(m.spec||'—')+'</td><td><span style="font-weight:700;color:'+(activeTasks>3?'var(--red)':'var(--green)')+'">'+activeTasks+'</span></td><td><span class="badge badge-active">Active</span></td><td class="td-actions">'+actions+'</td></tr>';
     }).join('');
   }
@@ -1713,8 +1724,8 @@ function populateReportsTo(excludeId){
 }
 function populateBranchSelect(selected){ var sel=document.getElementById('tm-branch'); if(!sel) return; sel.innerHTML=BRANCHES.map(function(b){return '<option value="'+esc(b)+'"'+(b===selected?' selected':'')+'>'+esc(b)+'</option>';}).join(''); }
 function openTeamModal(){ populateReportsTo(null); document.getElementById('tm-edit-id').value=''; document.getElementById('team-modal-title').textContent='Add Team Member'; ['tm-name','tm-email','tm-phone','tm-spec','tm-pass'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('tm-reports').value=''; populateBranchSelect(myBranch()); document.getElementById('modal-team').classList.add('open'); }
-function editTeam(id){ var m=DB.team.find(function(x){return x.id===id;}); if(!m)return; populateReportsTo(id); document.getElementById('tm-edit-id').value=id; document.getElementById('team-modal-title').textContent='Edit Member'; document.getElementById('tm-name').value=m.name; document.getElementById('tm-role').value=m.role; document.getElementById('tm-email').value=m.email||''; document.getElementById('tm-phone').value=m.phone||''; document.getElementById('tm-spec').value=m.spec||''; document.getElementById('tm-reports').value=m.reportsTo||''; populateBranchSelect(m.branch||myBranch()); document.getElementById('modal-team').classList.add('open'); }
-function saveTeam(){ var name=document.getElementById('tm-name').value.trim(); if(!name){alert('Name required.');return;} var eid=document.getElementById('tm-edit-id').value; var m={name:name,role:document.getElementById('tm-role').value,email:document.getElementById('tm-email').value,phone:document.getElementById('tm-phone').value,spec:document.getElementById('tm-spec').value,reportsTo:document.getElementById('tm-reports').value,branch:document.getElementById('tm-branch').value,active:true}; if(document.getElementById('tm-pass').value) m.pass=document.getElementById('tm-pass').value; if(eid){var idx=DB.team.findIndex(function(x){return x.id==eid;});if(idx>=0){var oldName=DB.team[idx].name;m.id=+eid;if(!m.pass)m.pass=DB.team[idx].pass;DB.team[idx]=m;if(oldName!==name){DB.team.forEach(function(x){if(x.reportsTo===oldName)x.reportsTo=name;});}logActivity('Updated team member: '+name);}}else{m.id=DB.nextId.team++;DB.team.push(m);logActivity('Added team member: '+name);} save();closeModal('modal-team');renderTeam();toast('Team member saved!','success'); }
+function editTeam(id){ var m=DB.team.find(function(x){return x.id===id;}); if(!m)return; if(!canEditMember(id)){ toast('You do not have rights to edit this team member\'s details.','error'); return; } populateReportsTo(id); document.getElementById('tm-edit-id').value=id; document.getElementById('team-modal-title').textContent='Edit Member'; document.getElementById('tm-name').value=m.name; document.getElementById('tm-role').value=m.role; document.getElementById('tm-email').value=m.email||''; document.getElementById('tm-phone').value=m.phone||''; document.getElementById('tm-spec').value=m.spec||''; document.getElementById('tm-reports').value=m.reportsTo||''; populateBranchSelect(m.branch||myBranch()); document.getElementById('modal-team').classList.add('open'); }
+function saveTeam(){ var name=document.getElementById('tm-name').value.trim(); if(!name){alert('Name required.');return;} var eid=document.getElementById('tm-edit-id').value; if(eid&&!canEditMember(+eid)){ toast('You do not have rights to edit this team member.','error'); closeModal('modal-team'); return; } var m={name:name,role:document.getElementById('tm-role').value,email:document.getElementById('tm-email').value,phone:document.getElementById('tm-phone').value,spec:document.getElementById('tm-spec').value,reportsTo:document.getElementById('tm-reports').value,branch:document.getElementById('tm-branch').value,active:true}; if(document.getElementById('tm-pass').value) m.pass=document.getElementById('tm-pass').value; if(eid){var idx=DB.team.findIndex(function(x){return x.id==eid;});if(idx>=0){var oldName=DB.team[idx].name;m.id=+eid;if(!m.pass)m.pass=DB.team[idx].pass;DB.team[idx]=m;if(oldName!==name){DB.team.forEach(function(x){if(x.reportsTo===oldName)x.reportsTo=name;});}logActivity('Updated team member: '+name);}}else{m.id=DB.nextId.team++;DB.team.push(m);logActivity('Added team member: '+name);} save();closeModal('modal-team');renderTeam();toast('Team member saved!','success'); }
 function deleteTeam(id){
   if(!isPartner()){ toast('Only Partners can remove team members.','error'); return; }
   var m=DB.team.find(function(x){return x.id===id;}); if(!m) return;
@@ -1780,6 +1791,29 @@ function hasPermission(perm){
 }
 function canSeeBilling(){
   return isSeniorManager()||hasPermission('view_billing');
+}
+// Walks a team member's "Reports To" chain to check if targetName eventually reports up to managerName
+function isDownstreamOf(targetName,managerName){
+  var seen={}; var cur=targetName;
+  while(cur){
+    if(seen[cur]) return false; // cycle guard
+    seen[cur]=true;
+    var m=(DB.team||[]).find(function(x){return x.name===cur;});
+    if(!m||!m.reportsTo) return false;
+    if(m.reportsTo===managerName) return true;
+    cur=m.reportsTo;
+  }
+  return false;
+}
+// Credential/edit rights: Partners can edit anyone in their branch. Non-partners can only edit
+// their own profile or staff who report to them (directly/indirectly) — never a peer or a superior.
+function canEditMember(id){
+  if(isPartner()) return true;
+  var target=(DB.team||[]).find(function(x){return x.id===id;});
+  var me=DB.currentUser?DB.currentUser.name:'';
+  if(!target) return false;
+  if(target.name===me) return true;
+  return isDownstreamOf(target.name,me);
 }
 var VIEW_PERMS={clients:'view_clients',billing:'view_billing',recurring:'manage_recurring',team:'view_team',access:'partner_only'};
 
@@ -2207,7 +2241,14 @@ function renderTransferHistory(){
 function openTransfer(taskId){
   var t=DB.tasks.find(function(x){return x.id===taskId;});
   if(!t) return;
-  populateDropdowns();
+  // Transfer-to includes everyone firm-wide (grouped by branch) so a task can be handed to another branch's head/staff
+  var sel=document.getElementById('transfer-to');
+  var byBranch={};
+  (DB.team||[]).forEach(function(m){ (byBranch[m.branch||'Unassigned']=byBranch[m.branch||'Unassigned']||[]).push(m); });
+  sel.innerHTML='<option value="">— Select Member —</option>'+BRANCHES.map(function(b){
+    var members=byBranch[b]||[]; if(!members.length) return '';
+    return '<optgroup label="'+esc(b)+(b===myBranch()?' (My Branch)':'')+'">'+members.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+' — '+esc(m.role)+'</option>';}).join('')+'</optgroup>';
+  }).join('');
   document.getElementById('transfer-task-id').value=taskId;
   document.getElementById('transfer-task-name').value=t.title;
   document.getElementById('transfer-from').value=t.assignee||'Unassigned';
@@ -2215,7 +2256,6 @@ function openTransfer(taskId){
   document.getElementById('transfer-to').value='';
   document.getElementById('transfer-note').value='';
   // Remove current assignee from transfer-to options
-  var sel=document.getElementById('transfer-to');
   Array.from(sel.options).forEach(function(o){ o.disabled=(o.value===t.assignee); });
   document.getElementById('modal-transfer').classList.add('open');
 }
@@ -2229,18 +2269,27 @@ function doTransfer(){
   var t=DB.tasks.find(function(x){return x.id===taskId;});
   if(!t) return;
   var from=t.assignee||'Unassigned';
+  var toBranch=branchOfMember(to)||myBranch();
+  var isCrossBranch=(toBranch!==t.branch);
   // Record history
   if(!DB.transferHistory) DB.transferHistory=[];
-  DB.transferHistory.push({taskId:taskId,taskTitle:t.title,from:from,to:to,note:note,ts:new Date().toISOString()});
+  DB.transferHistory.push({taskId:taskId,taskTitle:t.title,from:from,to:to,note:note,ts:new Date().toISOString(),crossBranch:isCrossBranch,fromBranch:t.branch,toBranch:toBranch});
   // Notification for recipient
   if(!DB.notifications) DB.notifications=[];
-  DB.notifications.push({id:Date.now(),to:to,msg:'Task "'+t.title+'" was transferred to you by '+from+(note?' — Note: '+note:''),ts:new Date().toISOString(),read:false});
+  DB.notifications.push({id:Date.now(),to:to,msg:'Task "'+t.title+'" was transferred to you by '+from+(isCrossBranch?' (from '+t.branch+')':'')+(note?' — Note: '+note:''),ts:new Date().toISOString(),read:false});
   // Update task
   t.assignee=to;
   t.status=newStatus;
+  if(isCrossBranch){
+    // Hand ownership to the destination branch, but keep the originating branch able to see live status
+    t.sharedWithBranch=t.branch;
+    t.branch=toBranch;
+    logActivity('Cross-branch transfer: "'+t.title+'" from '+from+' ('+(t.sharedWithBranch)+') → '+to+' ('+toBranch+')'+(note?' — '+note:''));
+  } else {
+    logActivity('Transferred "'+t.title+'" from '+from+' → '+to+(note?' ('+note+')':''));
+  }
   if(!t.transferLog) t.transferLog=[];
-  t.transferLog.push({from:from,to:to,note:note,ts:new Date().toISOString()});
-  logActivity('Transferred "'+t.title+'" from '+from+' → '+to+(note?' ('+note+')':''));
+  t.transferLog.push({from:from,to:to,note:note,ts:new Date().toISOString(),crossBranch:isCrossBranch});
   save();
   closeModal('modal-transfer');
   renderTasks();
