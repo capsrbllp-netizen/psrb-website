@@ -29,6 +29,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .form-group input:focus{border-color:var(--navy);}
 .login-btn{width:100%;padding:13px;background:var(--navy);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:8px;}
 .login-btn:hover{background:var(--navy2);}
+.login-btn:disabled{background:var(--muted);cursor:not-allowed;opacity:0.7;}
 .login-err{background:#fff5f5;color:var(--red);border:1px solid #fed7d7;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:16px;display:none;}
 .login-hint{margin-top:18px;padding:12px;background:var(--cream);border-radius:8px;font-size:12px;color:var(--muted);}
 .login-hint strong{color:var(--navy);}
@@ -212,7 +213,7 @@ tr:hover td{background:var(--cream);}
       <label>Password</label>
       <input type="password" id="login-pass" placeholder="••••••••" value="">
     </div>
-    <button class="login-btn" onclick="doLogin()">Sign In →</button>
+    <button class="login-btn" onclick="doLogin()" id="login-submit-btn" disabled>Loading…</button>
   </div>
 </div>
 
@@ -1092,7 +1093,9 @@ function today(){ return fmt(new Date()); }
 function daysUntil(dateStr){ return Math.ceil((new Date(dateStr)-new Date(today()))/(86400000)); }
 
 // ── AUTH ──
+var _dataReady=false;
 function doLogin(){
+  if(!_dataReady){ var err0=document.getElementById('login-err'); err0.textContent='Still loading your firm\'s data — please wait a moment and try again.'; err0.style.display='block'; return; }
   var email=(document.getElementById('login-email').value||'').toLowerCase().trim();
   var pass=document.getElementById('login-pass').value;
   var err=document.getElementById('login-err');
@@ -1103,7 +1106,7 @@ function doLogin(){
     var tm=DB.team.find(function(t){return (t.email||'').toLowerCase()===email && t.pass===pass;});
     if(tm) u={email:tm.email,name:tm.name,role:tm.role,initials:tm.name.split(' ').map(function(n){return n[0];}).join('').substring(0,2).toUpperCase()};
   }
-  if(!u){ err.style.display='block'; return; }
+  if(!u){ err.textContent='Invalid email or password.'; err.style.display='block'; return; }
   err.style.display='none';
   // Always resolve branch from the Team roster (kept in sync if branch is reassigned later)
   var teamMatch=(DB.team||[]).find(function(t){return (t.email||'').toLowerCase()===email;});
@@ -1179,14 +1182,14 @@ function updateBadges(){
   var pending=(DB.tasks||[]).filter(function(t){return t.branch===myBranch()&&t.status!=='Done';}).length;
   var pb=document.getElementById('pending-badge');
   pb.textContent=pending; pb.style.display=pending>0?'':'none';
-  var overdue=(DB.deadlines||[]).filter(function(d){return d.branch===myBranch()&&daysUntil(d.date)<0;}).length;
+  var overdue=(DB.deadlines||[]).filter(function(d){return daysUntil(d.date)<0;}).length;
   var ob=document.getElementById('overdue-badge');
   ob.style.display=overdue>0?'':'none';
 }
 
 // ── DASHBOARD ──
 function renderDashboard(){
-  var tasks=(DB.tasks||[]).filter(function(t){return t.branch===myBranch();}), clients=(DB.clients||[]).filter(function(c){return c.branch===myBranch();}), deadlines=(DB.deadlines||[]).filter(function(d){return d.branch===myBranch();}), billing=(DB.billing||[]).filter(function(b){return b.branch===myBranch();});
+  var tasks=(DB.tasks||[]).filter(function(t){return t.branch===myBranch();}), clients=(DB.clients||[]).filter(function(c){return c.branch===myBranch();}), deadlines=DB.deadlines||[], billing=(DB.billing||[]).filter(function(b){return b.branch===myBranch();});
   var activeTasks=tasks.filter(function(t){return t.status!=='Done';});
   var upcoming=deadlines.filter(function(d){return daysUntil(d.date)>=0 && daysUntil(d.date)<=30;});
   var pendingFees=billing.filter(function(b){return b.status!=='Paid';}).reduce(function(s,b){return s+(+b.amount||0);},0);
@@ -1616,7 +1619,7 @@ function copyCred(fieldId){
 
 // ── DEADLINES ──
 function renderDeadlines(){
-  var data=(DB.deadlines||[]).filter(function(d){return d.branch===myBranch();}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+  var data=(DB.deadlines||[]).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
   var el=document.getElementById('deadlines-list');
   if(!data.length){ el.innerHTML='<div class="empty-state"><div class="icon">📅</div><p>No custom deadlines added yet.</p></div>'; return; }
   el.innerHTML=data.map(function(d){
@@ -2586,6 +2589,8 @@ document.querySelectorAll('.modal-overlay').forEach(function(el){
 (async function(){
 await load();
 migrateBranches();
+_dataReady=true;
+var lb=document.getElementById('login-submit-btn'); if(lb){ lb.disabled=false; lb.textContent='Sign In →'; }
 // Restore session only from sessionStorage (clears when browser tab closes)
 var _sess = sessionStorage.getItem('psrb_session');
 if(_sess){ try{ var u=JSON.parse(_sess); DB.currentUser=u;
