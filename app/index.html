@@ -950,6 +950,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 var fsdb = firebase.firestore();
+fsdb.settings({ ignoreUndefinedProperties: true });
 var FS_DOC = fsdb.collection('psrb_data').doc('main');
 
 </script>
