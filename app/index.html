@@ -1258,7 +1258,19 @@ function renderTasks(){
       var over=t.estHours&&t.actualHours&&t.actualHours>t.estHours;
       timeInfo='<br><span style="font-size:11px;color:'+(over?'var(--red)':'var(--muted)')+';" '+(t.overtimeReason?'title="Overtime reason: '+esc(t.overtimeReason)+'"':'')+'>⏱ '+(t.estHours?'Est '+t.estHours+'h':'')+(t.actualHours?' · Actual '+t.actualHours+'h':'')+(over?' ⚠':'')+'</span>';
     }
-    return '<tr><td><strong>'+esc(t.title)+'</strong><br><span style="font-size:11px;color:var(--muted);">'+esc(t.category)+'</span>'+timeInfo+'</td>'+
+    var tplInfo='';
+    if(t.isTemplateJob&&t.templateJobId){
+      var job=(DB.templateJobs||[]).find(function(x){return x.id===t.templateJobId;});
+      if(job){
+        var tpl=getTemplates().find(function(x){return x.id===job.tplId;});
+        var totalSteps=tpl?tpl.steps.length:0;
+        var doneSteps=Object.keys(job.steps||{}).filter(function(k){return job.steps[k];}).length;
+        var totalDocs=tpl?tpl.docs.length:0;
+        var gotDocs=Object.keys(job.docs||{}).filter(function(k){return job.docs[k];}).length;
+        tplInfo='<br><span style="font-size:11px;color:var(--gold);cursor:pointer;" onclick="openTemplateJob('+job.id+')" title="Open document & step checklist">📋 Checklist: '+gotDocs+'/'+totalDocs+' docs · '+doneSteps+'/'+totalSteps+' steps</span>';
+      }
+    }
+    return '<tr><td><strong>'+esc(t.title)+'</strong><br><span style="font-size:11px;color:var(--muted);">'+esc(t.category)+'</span>'+timeInfo+tplInfo+'</td>'+
     '<td>'+esc(t.client||'—')+'</td>'+
     '<td><div style="display:flex;align-items:center;gap:8px;"><div class="avatar-sm a1">'+initials(t.assignee)+'</div>'+esc(t.assignee||'—')+'</div></td>'+
     '<td><span class="priority-dot dot-'+t.priority.toLowerCase()+'"></span>'+t.priority+'</td>'+
@@ -2334,15 +2346,20 @@ function startTemplateJob(){
   if(!client||!assignee){alert('Client and assignee are required.');return;}
   var t=getTemplates().find(function(x){return x.id===tplId;}); if(!t) return;
   if(!DB.templateJobs) DB.templateJobs=[];
+  var me=DB.currentUser?DB.currentUser.name:'';
   var job={id:Date.now(),tplId:tplId,tplTitle:t.title,client:client,assignee:assignee,started:new Date().toISOString(),docs:{},steps:{},status:'In Progress'};
+  // Also create a linked task so it shows up in the assignee's Tasks list
+  if(!DB.tasks) DB.tasks=[];
+  var task={id:DB.nextId.task++,title:t.title+' — '+client,client:client,assignee:assignee,priority:'Medium',status:'In Progress',due:today(),category:t.category||'Other',notes:'Auto-created from Work Template. Track the document checklist and steps under Work Templates → Active Client Jobs.',estHours:0,actualHours:0,overtimeReason:'',created:new Date().toISOString(),assignedBy:me,isTemplateJob:true,templateJobId:job.id};
+  DB.tasks.push(task);
+  job.taskId=task.id;
   DB.templateJobs.push(job);
   // Notify assignee
   if(!DB.notifications) DB.notifications=[];
-  var me=DB.currentUser?DB.currentUser.name:'';
-  if(assignee!==me) DB.notifications.push({id:Date.now()+1,to:assignee,msg:'New job assigned: "'+t.title+'" for client '+client+' — open Work Templates → Active Client Jobs to track it.',ts:new Date().toISOString(),read:false});
+  if(assignee!==me) DB.notifications.push({id:Date.now()+1,to:assignee,msg:'New job assigned: "'+t.title+'" for client '+client+' — check your Tasks list or Work Templates → Active Client Jobs to track it.',ts:new Date().toISOString(),read:false});
   logActivity('Started template job: '+t.title+' for '+client+' (assigned: '+assignee+')');
   save(); closeModal('modal-tpl-job-new'); renderTemplates();
-  toast('Job started for '+client+'!','success');
+  toast('Job started for '+client+'! Task added to '+assignee+'\'s task list.','success');
   openTemplateJob(job.id);
 }
 function renderTemplateJobs(){
@@ -2393,12 +2410,14 @@ function openTemplateJob(jobId){
   document.getElementById('tpj-delete-btn').style.display=isPartner()?'':'none';
   document.getElementById('modal-tpl-job').classList.add('open');
 }
-function toggleJobDoc(jobId,idx,val){ var j=(DB.templateJobs||[]).find(function(x){return x.id===jobId;}); if(!j)return; if(!j.docs)j.docs={}; j.docs[idx]=val; save(); openTemplateJob(jobId); renderTemplateJobs(); }
-function toggleJobStep(jobId,idx,val){ var j=(DB.templateJobs||[]).find(function(x){return x.id===jobId;}); if(!j)return; if(!j.steps)j.steps={}; j.steps[idx]=val; save(); openTemplateJob(jobId); renderTemplateJobs(); }
+function toggleJobDoc(jobId,idx,val){ var j=(DB.templateJobs||[]).find(function(x){return x.id===jobId;}); if(!j)return; if(!j.docs)j.docs={}; j.docs[idx]=val; save(); openTemplateJob(jobId); renderTemplateJobs(); renderTasks(); }
+function toggleJobStep(jobId,idx,val){ var j=(DB.templateJobs||[]).find(function(x){return x.id===jobId;}); if(!j)return; if(!j.steps)j.steps={}; j.steps[idx]=val; save(); openTemplateJob(jobId); renderTemplateJobs(); renderTasks(); }
 function deleteTemplateJob(jobId){
-  if(!confirm('Delete this client job and its checklist progress?')) return;
+  if(!confirm('Delete this client job and its checklist progress? The linked task will also be removed.')) return;
+  var job=(DB.templateJobs||[]).find(function(x){return x.id===jobId;});
   DB.templateJobs=(DB.templateJobs||[]).filter(function(x){return x.id!==jobId;});
-  save(); closeModal('modal-tpl-job'); renderTemplateJobs();
+  if(job&&job.taskId) DB.tasks=(DB.tasks||[]).filter(function(x){return x.id!==job.taskId;});
+  save(); closeModal('modal-tpl-job'); renderTemplateJobs(); renderTasks(); renderDashboard();
   toast('Job deleted.');
 }
 
