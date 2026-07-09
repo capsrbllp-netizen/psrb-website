@@ -751,6 +751,14 @@ tr:hover td{background:var(--cream);}
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-client-creds">
+  <div class="modal" style="width:420px;">
+    <div class="modal-title">🔑 Portal Credentials — <span id="cc-view-name"></span></div>
+    <div id="cc-view-body"></div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('modal-client-creds')">Close</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-client">
   <div class="modal">
     <div class="modal-title" id="client-modal-title">Add Client</div>
@@ -774,6 +782,21 @@ tr:hover td{background:var(--cream);}
       <div class="field"><label>Status</label><select id="c-status"><option>Active</option><option>Inactive</option></select></div>
     </div>
     <div class="field"><label>Address</label><textarea id="c-address" placeholder="Full address..." style="min-height:60px;"></textarea></div>
+    <div class="field">
+      <label>🔑 Portal Credentials <span style="font-weight:400;color:var(--muted);">(for quick staff lookup — Income Tax &amp; GST portal logins)</span></label>
+      <div style="padding:14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--border);">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">INCOME TAX E-FILING PORTAL</div>
+        <div class="field-row" style="margin-bottom:10px;">
+          <div class="field"><label>User ID</label><input type="text" id="c-it-user" placeholder="PAN or User ID"></div>
+          <div class="field"><label>Password</label><input type="text" id="c-it-pass" placeholder="Portal password"></div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;">GST PORTAL</div>
+        <div class="field-row">
+          <div class="field"><label>User ID</label><input type="text" id="c-gst-user" placeholder="GST portal username"></div>
+          <div class="field"><label>Password</label><input type="text" id="c-gst-pass" placeholder="Portal password"></div>
+        </div>
+      </div>
+    </div>
     <div class="field">
       <label>Applicable Compliance (auto-creates recurring tasks monthly/quarterly/annually)</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;padding:14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--border);">
@@ -1520,13 +1543,36 @@ function renderClients(){
         '<td><span style="font-size:11px;color:var(--muted);font-style:italic;">View Only</span></td>'+
       '</tr>';
     }
-    return '<tr><td><strong>'+esc(c.name)+'</strong></td><td>'+esc(c.type)+'</td><td><span style="font-size:12px;">'+esc(c.pan||'—')+'</span><br><span style="font-size:11px;color:var(--muted);">'+esc(c.gstin||'—')+'</span></td><td>'+esc(c.contact||'—')+'<br><span style="font-size:12px;color:var(--muted);">'+esc(c.phone||'')+'</span></td><td>'+esc(c.service||'—')+'</td><td><span class="badge badge-'+(c.status==='Active'?'active':'inactive')+'">'+c.status+'</span></td><td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editClient('+c.id+')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteClient('+c.id+')">Del</button></td></tr>';
+    return '<tr><td><strong>'+esc(c.name)+'</strong></td><td>'+esc(c.type)+'</td><td><span style="font-size:12px;">'+esc(c.pan||'—')+'</span><br><span style="font-size:11px;color:var(--muted);">'+esc(c.gstin||'—')+'</span></td><td>'+esc(c.contact||'—')+'<br><span style="font-size:12px;color:var(--muted);">'+esc(c.phone||'')+'</span></td><td>'+esc(c.service||'—')+'</td><td><span class="badge badge-'+(c.status==='Active'?'active':'inactive')+'">'+c.status+'</span></td><td class="td-actions"><button class="btn btn-sm btn-gold" onclick="openClientCreds('+c.id+')" title="View portal login credentials">🔑</button><button class="btn btn-sm btn-outline" onclick="editClient('+c.id+')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteClient('+c.id+')">Del</button></td></tr>';
   }).join('');
 }
-function openClientModal(){ populateDropdowns(); document.getElementById('client-edit-id').value=''; document.getElementById('client-modal-title').textContent='Add Client'; ['c-name','c-pan','c-gst','c-contact','c-phone','c-email','c-address'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('c-fee').value=''; document.getElementById('c-status').value='Active'; document.getElementById('c-assignee').value=''; setClientCompliance([]); document.getElementById('modal-client').classList.add('open'); }
-function editClient(id){ populateDropdowns(); var c=DB.clients.find(function(x){return x.id===id;}); if(!c)return; document.getElementById('client-edit-id').value=id; document.getElementById('client-modal-title').textContent='Edit Client'; document.getElementById('c-name').value=c.name; document.getElementById('c-type').value=c.type; document.getElementById('c-pan').value=c.pan||''; document.getElementById('c-gst').value=c.gstin||''; document.getElementById('c-contact').value=c.contact||''; document.getElementById('c-phone').value=c.phone||''; document.getElementById('c-email').value=c.email||''; document.getElementById('c-service').value=c.service; document.getElementById('c-fee').value=c.fee||''; document.getElementById('c-status').value=c.status; document.getElementById('c-address').value=c.address||''; document.getElementById('c-assignee').value=c.defaultAssignee||''; setClientCompliance(c.recurringServices||[]); document.getElementById('modal-client').classList.add('open'); }
-function saveClient(){ var name=document.getElementById('c-name').value.trim(); if(!name){alert('Client name required.');return;} var eid=document.getElementById('client-edit-id').value; var cl={name:name,type:document.getElementById('c-type').value,pan:document.getElementById('c-pan').value.toUpperCase(),gstin:document.getElementById('c-gst').value,contact:document.getElementById('c-contact').value,phone:document.getElementById('c-phone').value,email:document.getElementById('c-email').value,service:document.getElementById('c-service').value,fee:document.getElementById('c-fee').value,status:document.getElementById('c-status').value,address:document.getElementById('c-address').value,recurringServices:getClientCompliance(),defaultAssignee:document.getElementById('c-assignee').value}; if(eid){var idx=DB.clients.findIndex(function(x){return x.id==eid;});if(idx>=0){cl.id=+eid;DB.clients[idx]=cl;logActivity('Updated client: '+name);}}else{cl.id=DB.nextId.client++;DB.clients.push(cl);logActivity('Added client: '+name+' with '+cl.recurringServices.length+' recurring compliance(s)');} save(); var newTasks=generateClientRecurringTasks(); closeModal('modal-client');renderClients();renderDashboard(); toast('Client saved!'+(newTasks>0?' '+newTasks+' recurring tasks created.':''),'success'); }
+function openClientModal(){ populateDropdowns(); document.getElementById('client-edit-id').value=''; document.getElementById('client-modal-title').textContent='Add Client'; ['c-name','c-pan','c-gst','c-contact','c-phone','c-email','c-address','c-it-user','c-it-pass','c-gst-user','c-gst-pass'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('c-fee').value=''; document.getElementById('c-status').value='Active'; document.getElementById('c-assignee').value=''; setClientCompliance([]); document.getElementById('modal-client').classList.add('open'); }
+function editClient(id){ populateDropdowns(); var c=DB.clients.find(function(x){return x.id===id;}); if(!c)return; document.getElementById('client-edit-id').value=id; document.getElementById('client-modal-title').textContent='Edit Client'; document.getElementById('c-name').value=c.name; document.getElementById('c-type').value=c.type; document.getElementById('c-pan').value=c.pan||''; document.getElementById('c-gst').value=c.gstin||''; document.getElementById('c-contact').value=c.contact||''; document.getElementById('c-phone').value=c.phone||''; document.getElementById('c-email').value=c.email||''; document.getElementById('c-service').value=c.service; document.getElementById('c-fee').value=c.fee||''; document.getElementById('c-status').value=c.status; document.getElementById('c-address').value=c.address||''; document.getElementById('c-it-user').value=c.itUser||''; document.getElementById('c-it-pass').value=c.itPass||''; document.getElementById('c-gst-user').value=c.gstUser||''; document.getElementById('c-gst-pass').value=c.gstPass||''; document.getElementById('c-assignee').value=c.defaultAssignee||''; setClientCompliance(c.recurringServices||[]); document.getElementById('modal-client').classList.add('open'); }
+function saveClient(){ var name=document.getElementById('c-name').value.trim(); if(!name){alert('Client name required.');return;} var eid=document.getElementById('client-edit-id').value; var cl={name:name,type:document.getElementById('c-type').value,pan:document.getElementById('c-pan').value.toUpperCase(),gstin:document.getElementById('c-gst').value,contact:document.getElementById('c-contact').value,phone:document.getElementById('c-phone').value,email:document.getElementById('c-email').value,service:document.getElementById('c-service').value,fee:document.getElementById('c-fee').value,status:document.getElementById('c-status').value,address:document.getElementById('c-address').value,itUser:document.getElementById('c-it-user').value.trim(),itPass:document.getElementById('c-it-pass').value,gstUser:document.getElementById('c-gst-user').value.trim(),gstPass:document.getElementById('c-gst-pass').value,recurringServices:getClientCompliance(),defaultAssignee:document.getElementById('c-assignee').value}; if(eid){var idx=DB.clients.findIndex(function(x){return x.id==eid;});if(idx>=0){cl.id=+eid;DB.clients[idx]=cl;logActivity('Updated client: '+name);}}else{cl.id=DB.nextId.client++;DB.clients.push(cl);logActivity('Added client: '+name+' with '+cl.recurringServices.length+' recurring compliance(s)');} save(); var newTasks=generateClientRecurringTasks(); closeModal('modal-client');renderClients();renderDashboard(); toast('Client saved!'+(newTasks>0?' '+newTasks+' recurring tasks created.':''),'success'); }
 function deleteClient(id){ if(!confirm('Delete this client?'))return; var c=DB.clients.find(function(x){return x.id===id;}); DB.clients=DB.clients.filter(function(x){return x.id!==id;}); logActivity('Deleted client: '+(c?c.name:'')); save();renderClients();renderDashboard();toast('Client deleted.'); }
+function openClientCreds(id){
+  if(!isPartner()){ toast('Only Partners can view client credentials.','error'); return; }
+  var c=DB.clients.find(function(x){return x.id===id;}); if(!c) return;
+  document.getElementById('cc-view-name').textContent=c.name;
+  function row(label,val,fieldId){
+    if(!val) return '<div style="margin-bottom:14px;"><div style="font-size:11px;font-weight:700;color:var(--muted);">'+label+'</div><div style="font-size:13px;color:var(--muted);font-style:italic;">Not saved</div></div>';
+    return '<div style="margin-bottom:14px;"><div style="font-size:11px;font-weight:700;color:var(--muted);">'+label+'</div>'+
+      '<div style="display:flex;align-items:center;gap:8px;"><span id="'+fieldId+'" style="font-size:14px;font-family:monospace;background:var(--cream);padding:6px 10px;border-radius:6px;flex:1;">'+esc(val)+'</span>'+
+      '<button class="btn btn-sm btn-outline" onclick="copyCred(\''+fieldId+'\')">Copy</button></div></div>';
+  }
+  document.getElementById('cc-view-body').innerHTML=
+    '<div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:8px;">INCOME TAX E-FILING PORTAL</div>'+
+    row('User ID',c.itUser,'cc-it-user')+row('Password',c.itPass,'cc-it-pass')+
+    '<div style="font-size:12px;font-weight:700;color:var(--gold);margin:14px 0 8px;">GST PORTAL</div>'+
+    row('User ID',c.gstUser,'cc-gst-user')+row('Password',c.gstPass,'cc-gst-pass');
+  document.getElementById('modal-client-creds').classList.add('open');
+}
+function copyCred(fieldId){
+  var el=document.getElementById(fieldId); if(!el) return;
+  var text=el.textContent;
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(function(){toast('Copied!','success');}).catch(function(){toast('Could not copy — select and copy manually.','error');}); }
+  else{ toast('Clipboard not available — select and copy manually.','error'); }
+}
 
 // ── DEADLINES ──
 function renderDeadlines(){
