@@ -232,12 +232,22 @@ tr:hover td{background:var(--cream);}
     <button class="nav-item" onclick="showView('workchart',this)" id="nav-workchart"><span class="icon">📊</span> Work Chart</button>
     <button class="nav-item" onclick="showView('recurring',this)" id="nav-recurring"><span class="icon">🔁</span> Recurring Setup</button>
     <button class="nav-item" onclick="showView('templates',this)" id="nav-templates"><span class="icon">📝</span> Work Templates</button>
+    <button class="nav-item" onclick="showView('engagements',this)" id="nav-engagements"><span class="icon">📁</span> Engagements</button>
+    <button class="nav-item" onclick="showView('calendar',this)" id="nav-calendar"><span class="icon">🗓️</span> Compliance Calendar</button>
     <div class="sidebar-section">Finance</div>
     <button class="nav-item" onclick="showView('clients',this)" id="nav-clients2"><span class="icon">👥</span> Clients</button>
     <button class="nav-item" onclick="showView('billing',this)" id="nav-billing"><span class="icon">💰</span> Billing & Fees</button>
+    <button class="nav-item" onclick="showView('dues',this)" id="nav-dues"><span class="icon">📨</span> Dues</button>
+    <button class="nav-item" onclick="showView('statement',this)" id="nav-statement"><span class="icon">📄</span> Client Statement</button>
     <button class="nav-item" onclick="showView('documents',this)"><span class="icon">📁</span> Documents</button>
+    <div class="sidebar-section">HR</div>
+    <button class="nav-item" onclick="showView('attendance',this)" id="nav-attendance"><span class="icon">🕐</span> Attendance</button>
+    <button class="nav-item" onclick="showView('leave',this)" id="nav-leave"><span class="icon">🌴</span> Leave</button>
+    <button class="nav-item" onclick="showView('discipline',this)" id="nav-discipline"><span class="icon">🏆</span> Discipline</button>
     <div class="sidebar-section">Settings</div>
     <button class="nav-item" onclick="showView('team',this)" id="nav-team"><span class="icon">🧑‍💼</span> Team</button>
+    <button class="nav-item" onclick="showView('reports',this)" id="nav-reports"><span class="icon">📈</span> Reports</button>
+    <button class="nav-item" onclick="showView('dpdp',this)" id="nav-dpdp"><span class="icon">🛡️</span> DPDP Act</button>
     <button class="nav-item" onclick="showView('access',this)" id="nav-access"><span class="icon">🔐</span> Access Control</button>
     <button class="nav-item" onclick="showView('settings',this)"><span class="icon">⚙️</span> Settings</button>
     <div class="sidebar-footer">
@@ -439,11 +449,16 @@ tr:hover td{background:var(--cream);}
         <div class="card">
           <div class="card-header">
             <div class="card-title">Client Directory</div>
-            <button class="btn btn-primary" id="btn-add-client" onclick="openClientModal()">+ Add Client</button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-outline" id="btn-client-template" onclick="downloadClientTemplate()">📥 Download Template</button>
+              <button class="btn btn-outline" id="btn-client-import" onclick="document.getElementById('client-import-file').click()">📤 Import CSV</button>
+              <input type="file" id="client-import-file" accept=".csv" style="display:none;" onchange="importClientsCsv(event)">
+              <button class="btn btn-primary" id="btn-add-client" onclick="openClientModal()">+ Add Client</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Client Name</th><th>Type</th><th>PAN / GSTIN</th><th>Contact</th><th>Service</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Client Name</th><th>Code</th><th>Type</th><th>PAN / GSTIN</th><th>Contact</th><th>Modules</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="clients-tbody"></tbody>
             </table>
           </div>
@@ -492,17 +507,34 @@ tr:hover td{background:var(--cream);}
           <div class="stat-card"><div class="stat-icon">⏳</div><div class="stat-label">Outstanding</div><div class="stat-num" id="b-outstanding">₹0</div></div>
           <div class="stat-card"><div class="stat-icon">📋</div><div class="stat-label">Total Invoices</div><div class="stat-num" id="b-count">0</div></div>
         </div>
-        <div class="card">
+        <div class="card" style="margin-bottom:18px;">
           <div class="card-header">
-            <div class="card-title">Fee Register</div>
-            <button class="btn btn-primary" onclick="openBillingModal()">+ Raise Invoice</button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm btn-outline" onclick="switchBillingTab('quotes')" id="bill-tab-quotes">Quotes</button>
+              <button class="btn btn-sm btn-outline" onclick="switchBillingTab('proforma')" id="bill-tab-proforma">Proforma</button>
+              <button class="btn btn-sm btn-outline" onclick="switchBillingTab('invoices')" id="bill-tab-invoices">Invoices</button>
+              <button class="btn btn-sm btn-outline" onclick="switchBillingTab('receipts')" id="bill-tab-receipts">Receipts</button>
+            </div>
+            <div id="billing-tab-actions"></div>
           </div>
+          <p style="font-size:12px;color:var(--muted);">Quotes → Proforma → Tax Invoice (GST line items, HSN/SAC, CGST/SGST) → Receipt.</p>
+        </div>
+        <div class="card" id="billing-quotes-card" style="display:none;">
+          <div class="table-wrap"><table><thead><tr><th>Quote #</th><th>Client</th><th>Total (₹)</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="quotes-tbody"></tbody></table></div>
+        </div>
+        <div class="card" id="billing-proforma-card" style="display:none;">
+          <div class="table-wrap"><table><thead><tr><th>Proforma #</th><th>Client</th><th>Total (₹)</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="proforma-tbody"></tbody></table></div>
+        </div>
+        <div class="card" id="billing-invoices-card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Invoice #</th><th>Client</th><th>Service</th><th>Amount (₹)</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Invoice #</th><th>Client</th><th>Total (₹)</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="billing-tbody"></tbody>
             </table>
           </div>
+        </div>
+        <div class="card" id="billing-receipts-card" style="display:none;">
+          <div class="table-wrap"><table><thead><tr><th>Receipt #</th><th>Client</th><th>Against</th><th>Amount (₹)</th><th>Date</th><th>Mode</th><th>Actions</th></tr></thead><tbody id="receipts-tbody"></tbody></table></div>
         </div>
       </div>
 
@@ -605,6 +637,203 @@ tr:hover td{background:var(--cream);}
 
       <!-- TEMPLATE DETAIL MODAL trigger area -->
 
+      <!-- ENGAGEMENTS -->
+      <div class="view" id="view-engagements">
+        <div class="card">
+          <div class="card-header">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <div class="card-title">Active Engagements</div>
+              <input type="text" id="eng-filter-fy" placeholder="FY e.g. 2026-27" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;width:140px;" oninput="renderEngagements()">
+            </div>
+            <button class="btn btn-primary" id="btn-add-engagement" onclick="openEngagementModal()">+ New Engagement</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Client</th><th>Engagement Type</th><th>FY</th><th>Status</th><th>Assigned To</th><th>Actions</th></tr></thead>
+              <tbody id="engagements-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header"><div class="card-title">🔁 Financial Year Rollover</div></div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Clone every active engagement from one FY into the next, so you don't re-create them manually each year.</p>
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="field" style="margin:0;"><label>From FY</label><input type="text" id="ro-from-fy" placeholder="2026-27" style="width:140px;"></div>
+            <div class="field" style="margin:0;"><label>To FY</label><input type="text" id="ro-to-fy" placeholder="2027-28" style="width:140px;"></div>
+            <button class="btn btn-gold" onclick="rolloverEngagements()">Generate Engagements</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPLIANCE CALENDAR -->
+      <div class="view" id="view-calendar">
+        <div class="card" style="margin-bottom:18px;">
+          <div class="card-header">
+            <div class="card-title">🗓️ Master Compliance Calendar</div>
+            <button class="btn btn-primary" onclick="seedComplianceCalendar()">✨ Seed Master Calendar (This FY)</button>
+          </div>
+          <p style="font-size:13px;color:var(--muted);">One-click load of statutory due dates across Income Tax, TDS/TCS, GST, ROC/MCA, PF, ESI and Professional Tax for the current financial year.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Due Dates</div>
+            <div style="display:flex;gap:10px;">
+              <input type="text" id="cal-search" placeholder="Search return / period..." style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;" oninput="renderCalendar()">
+              <select id="cal-law-filter" onchange="renderCalendar()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;outline:none;">
+                <option value="">All laws</option>
+                <option>Income Tax</option><option>TDS/TCS</option><option>GST</option><option>ROC/MCA</option><option>PF</option><option>ESI</option><option>Professional Tax</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Law</th><th>Return / Form</th><th>Period</th><th>Due</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="calendar-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- DUES -->
+      <div class="view" id="view-dues">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📨 Outstanding Dues</div>
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-outline" onclick="exportDuesCsv()">📥 Export CSV</button>
+              <button class="btn btn-gold" onclick="sendAllDueReminders()">🔔 Notify All</button>
+            </div>
+          </div>
+          <p style="font-size:13px;color:var(--muted);">Aggregated outstanding across all Tax Invoices &amp; Proforma. "Notify All" sends an in-app reminder to each client's assigned staff member (this app has no outbound email/WhatsApp sending — see note in Communications).</p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Client</th><th>Assigned Staff</th><th>Invoices</th><th>Outstanding (₹)</th><th>Action</th></tr></thead>
+              <tbody id="dues-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLIENT STATEMENT -->
+      <div class="view" id="view-statement">
+        <div class="card">
+          <div class="card-header"><div class="card-title">📄 Client Statement</div></div>
+          <p style="font-size:13px;color:var(--muted);">Per financial year (Apr–Mar) ledger with opening balance, transactions and closing balance.</p>
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="field" style="margin:0;"><label>Client</label><select id="stmt-client" onchange="renderStatementView()" style="width:220px;"><option value="">— Select Client —</option></select></div>
+            <div class="field" style="margin:0;"><label>Financial Year</label><input type="text" id="stmt-fy" placeholder="2026-27" value="" oninput="renderStatementView()" style="width:120px;"></div>
+            <button class="btn btn-outline" onclick="exportStatementCsv()">📥 Export CSV</button>
+            <button class="btn btn-outline" onclick="window.print()">🖨️ Print</button>
+          </div>
+          <div id="statement-body"></div>
+        </div>
+      </div>
+
+      <!-- ATTENDANCE -->
+      <div class="view" id="view-attendance">
+        <div class="card" style="margin-bottom:18px;">
+          <div class="card-header"><div class="card-title">🕐 Today's Attendance</div></div>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="btn-checkin" onclick="checkIn()">Check In</button>
+            <button class="btn btn-outline" id="btn-checkout" onclick="checkOut()">Check Out</button>
+            <span id="attendance-my-status" style="font-size:13px;color:var(--muted);"></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Team Attendance — Today</div><input type="date" id="att-date" onchange="renderAttendance()" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;"></div>
+          <div class="stats-grid" style="margin-bottom:16px;">
+            <div class="stat-card"><div class="stat-label">Present</div><div class="stat-num" id="att-present">0</div></div>
+            <div class="stat-card"><div class="stat-label">Late</div><div class="stat-num" id="att-late">0</div></div>
+            <div class="stat-card"><div class="stat-label">Absent</div><div class="stat-num" id="att-absent">0</div></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Check In</th><th>Check Out</th><th>Status</th></tr></thead>
+              <tbody id="attendance-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEAVE -->
+      <div class="view" id="view-leave">
+        <div class="card">
+          <div class="card-header">
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-sm btn-outline" id="leave-tab-mine" onclick="switchLeaveTab('mine')">My Leave</button>
+              <button class="btn btn-sm btn-outline" id="leave-tab-team" onclick="switchLeaveTab('team')">Team Requests</button>
+            </div>
+            <button class="btn btn-primary" onclick="openLeaveModal()">+ Apply for Leave</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Employee</th><th>Type</th><th>Period</th><th>Days</th><th>Reason</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="leave-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- DISCIPLINE -->
+      <div class="view" id="view-discipline">
+        <div class="card" style="margin-bottom:18px;">
+          <div class="card-header"><div class="card-title">🏆 Employee of the Month</div></div>
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="field" style="margin:0;"><label>Award Amount (₹)</label><input type="number" id="eom-amount" style="width:140px;"></div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" id="eom-enabled"> Enabled</label>
+            <button class="btn btn-primary" onclick="saveEomSettings()">Save</button>
+          </div>
+          <p style="font-size:12px;color:var(--muted);margin-top:10px;">Score = completed tasks ×2 + on-time closures − overdue. Partners are excluded from the running.</p>
+          <div id="eom-winner" style="margin-top:14px;font-weight:700;"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Team Discipline Report (last 30 days)</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Employee</th><th>Completed</th><th>On Time</th><th>Overdue</th><th>Score</th><th>Status</th></tr></thead>
+              <tbody id="discipline-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- REPORTS -->
+      <div class="view" id="view-reports">
+        <div class="card" style="margin-bottom:18px;">
+          <div class="card-header"><div class="card-title">📤 GSTR-1 Export (from firm's Tax Invoices)</div></div>
+          <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+            <div class="field" style="margin:0;"><label>Month</label><input type="month" id="gstr-month" style="width:160px;"></div>
+            <button class="btn btn-gold" onclick="downloadGstr1()">📥 Download GSTR-1 CSV</button>
+          </div>
+          <p style="font-size:12px;color:var(--muted);margin-top:10px;">Builds a B2B/B2CL/B2CS/HSN summary CSV for the chosen month directly from this branch's Tax Invoices.</p>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Task Status Distribution</div></div>
+            <div id="report-task-chart" style="padding:10px 0;"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Attendance (Last 14 Days)</div></div>
+            <div id="report-attendance-chart" style="padding:10px 0;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DPDP ACT -->
+      <div class="view" id="view-dpdp">
+        <div class="card" style="margin-bottom:18px;">
+          <div class="card-header"><div class="card-title">🛡️ DPDP Act, 2023 Compliance</div></div>
+          <p style="font-size:13px;color:var(--muted);">All Digital Personal Data Protection Act, 2023 controls in one place — audit trail, breaches, grievances, retention and governance.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-outline" onclick="switchDpdpTab('audit')" id="dpdp-tab-audit">PD Audit Trail</button>
+            <button class="btn btn-sm btn-outline" onclick="switchDpdpTab('breach')" id="dpdp-tab-breach">Breach Log</button>
+            <button class="btn btn-sm btn-outline" onclick="switchDpdpTab('grievance')" id="dpdp-tab-grievance">Grievances</button>
+            <button class="btn btn-sm btn-outline" onclick="switchDpdpTab('retention')" id="dpdp-tab-retention">Data Retention</button>
+          </div>
+        </div>
+        <div class="card" id="dpdp-body"></div>
+      </div>
+
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /app -->
@@ -692,7 +921,7 @@ tr:hover td{background:var(--cream);}
       <label>⚠ Overtime Justification (required — actual time exceeds estimate)</label>
       <textarea id="t-overtime" placeholder="Why did this task take longer than estimated?"></textarea>
     </div>
-    <div class="field"><label>Notes</label><textarea id="t-notes" placeholder="Additional details..."></textarea></div>
+    <div class="field"><label>Notes <button type="button" class="btn btn-sm btn-outline" id="t-voice-btn" onclick="toggleVoiceDictation()" style="margin-left:8px;">🎤 Voice</button></label><textarea id="t-notes" placeholder="Additional details... (or tap Voice to dictate)"></textarea></div>
     <div class="field" id="t-invoice-row" style="display:none;">
       <label>💰 Invoice Amount (₹) — task is being marked Complete</label>
       <input type="number" id="t-invoice" min="0" step="1" placeholder="Amount to bill client">
@@ -767,7 +996,11 @@ tr:hover td{background:var(--cream);}
     <input type="hidden" id="client-edit-id">
     <div class="field-row">
       <div class="field"><label>Client / Business Name *</label><input type="text" id="c-name" placeholder="e.g. ABC Pvt Ltd"></div>
+      <div class="field"><label>Client Code *</label><input type="text" id="c-code" placeholder="e.g. CLI-0001"></div>
+    </div>
+    <div class="field-row">
       <div class="field"><label>Entity Type</label><select id="c-type"><option>Private Limited</option><option>LLP</option><option>Partnership</option><option>Proprietorship</option><option>Trust/NGO</option><option>HUF</option><option>Individual</option><option>Public Limited</option></select></div>
+      <div class="field"><label>State (for GST place of supply)</label><input type="text" id="c-state" placeholder="e.g. Odisha"></div>
     </div>
     <div class="field-row">
       <div class="field"><label>PAN Number</label><input type="text" id="c-pan" placeholder="ABCDE1234F" maxlength="10" style="text-transform:uppercase"></div>
@@ -814,6 +1047,24 @@ tr:hover td{background:var(--cream);}
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="cc-ptax" value="ptax"> Professional Tax (Monthly)</label>
       </div>
     </div>
+    <div class="field">
+      <label>Applicable Modules <span style="font-weight:400;color:var(--muted);">(feeds the dashboard "Clients by Module" view)</span></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px;padding:14px;background:var(--cream);border-radius:8px;border:1.5px solid var(--border);">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" class="c-module" value="GST"> GST</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" class="c-module" value="Income Tax"> Income Tax</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" class="c-module" value="ROC/MCA"> ROC / MCA</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" class="c-module" value="Audit"> Audit</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" class="c-module" value="Litigation"> Litigation</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" class="c-module" value="ESI"> ESI</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" class="c-module" value="PF"> PF</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" class="c-module" value="Accounting"> Accounting</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" class="c-module" value="Banking"> Banking</label>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Opening Balance (₹, positive = client owes firm)</label><input type="number" id="c-opening-balance" placeholder="0"></div>
+      <div class="field"><label>As On Date</label><input type="date" id="c-opening-date"></div>
+    </div>
     <div class="field"><label>Default Staff for This Client's Tasks</label><select id="c-assignee"><option value="">— Select Assignee —</option></select></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-client')">Cancel</button>
@@ -844,25 +1095,93 @@ tr:hover td{background:var(--cream);}
 </div>
 
 <div class="modal-overlay" id="modal-billing">
-  <div class="modal">
-    <div class="modal-title" id="billing-modal-title">Raise Invoice</div>
+  <div class="modal" style="width:720px;max-height:90vh;overflow-y:auto;">
+    <div class="modal-title" id="billing-modal-title">New Tax Invoice</div>
     <input type="hidden" id="bill-edit-id">
+    <input type="hidden" id="bill-doc-type" value="invoice">
     <div class="field-row">
-      <div class="field"><label>Client *</label><select id="bill-client"><option value="">— Select —</option></select></div>
-      <div class="field"><label>Service</label><select id="bill-service"><option>GST & Compliance</option><option>Income Tax Return</option><option>Audit</option><option>Valuation</option><option>Project Finance</option><option>Advisory</option><option>ROC Filing</option><option>TDS Return</option><option>Other</option></select></div>
+      <div class="field"><label>Client *</label><select id="bill-client" onchange="checkNonGstBilling()"><option value="">— Select —</option></select></div>
+      <div class="field"><label>Date</label><input type="date" id="bill-date"></div>
     </div>
     <div class="field-row">
-      <div class="field"><label>Amount (₹) *</label><input type="number" id="bill-amount" placeholder="25000"></div>
-      <div class="field"><label>Invoice Date</label><input type="date" id="bill-date"></div>
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Status</label><select id="bill-status"><option>Pending</option><option>Paid</option><option>Partially Paid</option></select></div>
       <div class="field"><label>Due Date</label><input type="date" id="bill-due"></div>
+      <div class="field"><label>Status</label><select id="bill-status"><option>Pending</option><option>Paid</option><option>Partially Paid</option></select></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:10px 0;padding:10px;background:var(--cream);border-radius:8px;">
+      <input type="checkbox" id="bill-non-gst" onchange="toggleNonGst()"> Non-GST billing <span style="color:var(--muted);font-size:12px;">— no GST charged, all line tax rates forced to 0%</span>
+    </label>
+    <div id="bill-lines-wrap">
+      <div style="display:grid;grid-template-columns:2fr 90px 60px 90px 70px 90px 30px;gap:8px;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;">
+        <span>Description</span><span>HSN/SAC</span><span>Qty</span><span>Rate</span><span>GST%</span><span>Amount</span><span></span>
+      </div>
+      <div id="bill-lines"></div>
+    </div>
+    <button class="btn btn-sm btn-outline" onclick="addBillLine()" style="margin:8px 0;">+ Add Line</button>
+    <div style="text-align:right;font-size:13px;line-height:1.9;border-top:1px solid var(--border);padding-top:10px;">
+      <div>Subtotal: <strong id="bill-subtotal">₹0.00</strong></div>
+      <div id="bill-cgst-row">CGST: <strong id="bill-cgst">₹0.00</strong></div>
+      <div id="bill-sgst-row">SGST: <strong id="bill-sgst">₹0.00</strong></div>
+      <div style="font-size:16px;">Total: <strong id="bill-total">₹0.00</strong></div>
     </div>
     <div class="field"><label>Notes</label><textarea id="bill-notes" placeholder="Invoice remarks..."></textarea></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modal-billing')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveBilling()">Save Invoice</button>
+      <button class="btn btn-primary" onclick="saveBilling()" id="bill-save-btn">Save Invoice</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-receipt">
+  <div class="modal">
+    <div class="modal-title">Record Receipt</div>
+    <input type="hidden" id="rcpt-edit-id">
+    <div class="field"><label>Client *</label><select id="rcpt-client" onchange="populateRcptInvoices()"><option value="">— Select —</option></select></div>
+    <div class="field"><label>Against Invoice</label><select id="rcpt-against"><option value="">— General / Advance —</option></select></div>
+    <div class="field-row">
+      <div class="field"><label>Amount (₹) *</label><input type="number" id="rcpt-amount" placeholder="25000"></div>
+      <div class="field"><label>Date</label><input type="date" id="rcpt-date"></div>
+    </div>
+    <div class="field"><label>Mode</label><select id="rcpt-mode"><option>Bank Transfer</option><option>UPI</option><option>Cheque</option><option>Cash</option></select></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-receipt')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveReceipt()">Save Receipt</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-engagement">
+  <div class="modal">
+    <div class="modal-title" id="eng-modal-title">New Engagement</div>
+    <input type="hidden" id="eng-edit-id">
+    <div class="field"><label>Client *</label><select id="eng-client"><option value="">— Select —</option></select></div>
+    <div class="field-row">
+      <div class="field"><label>Engagement Type</label><select id="eng-type"><option>Statutory Audit</option><option>Tax Audit</option><option>GST Registration</option><option>Company Incorporation</option><option>ROC Annual Filing</option><option>Income Tax Return</option><option>Valuation</option><option>Project Finance</option><option>Advisory</option><option>Other</option></select></div>
+      <div class="field"><label>Financial Year</label><input type="text" id="eng-fy" placeholder="2026-27"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Assigned To</label><select id="eng-assignee"><option value="">— Unassigned —</option></select></div>
+      <div class="field"><label>Status</label><select id="eng-status"><option>Not Started</option><option>In Progress</option><option>Completed</option></select></div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="eng-notes"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-engagement')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEngagement()">Save Engagement</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-leave">
+  <div class="modal">
+    <div class="modal-title">Apply for Leave</div>
+    <div class="field"><label>Type</label><select id="lv-type"><option>Casual</option><option>Sick</option><option>Earned</option><option>Unpaid</option></select></div>
+    <div class="field-row">
+      <div class="field"><label>Start</label><input type="date" id="lv-start"></div>
+      <div class="field"><label>End</label><input type="date" id="lv-end"></div>
+    </div>
+    <div class="field"><label>Reason</label><textarea id="lv-reason"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-leave')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLeave()">Submit</button>
     </div>
   </div>
 </div>
@@ -992,7 +1311,9 @@ var USERS = [
 
 var DB = {
   tasks:[], clients:[], deadlines:[], billing:[], documents:[], team:[], activity:[], currentUser:null,
-  nextId:{task:1,client:1,deadline:1,billing:1,doc:1,team:1}
+  engagements:[], complianceCalendar:[], quotes:[], proforma:[], receipts:[],
+  attendance:[], leaveRequests:[], dpdpLog:[], employeeOfMonth:{amount:1000,enabled:true},
+  nextId:{task:1,client:1,deadline:1,billing:1,doc:1,team:1,engagement:1,quote:1,proforma:1,receipt:1,leave:1}
 };
 
 async function load(){
@@ -1152,11 +1473,13 @@ function showView(id, btn){
   document.getElementById('view-'+id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
   if(btn) btn.classList.add('active');
-  var titles={dashboard:'Dashboard',tasks:'Tasks',clients:'Clients',deadlines:'Deadlines',billing:'Billing & Fees',documents:'Documents',team:'Team',settings:'Settings',workchart:'Work Chart',recurring:'Recurring Setup',access:'Access Control',templates:'Work Templates'};
+  var titles={dashboard:'Dashboard',tasks:'Tasks',clients:'Clients',deadlines:'Deadlines',billing:'Billing & Fees',documents:'Documents',team:'Team',settings:'Settings',workchart:'Work Chart',recurring:'Recurring Setup',access:'Access Control',templates:'Work Templates',engagements:'Engagements',calendar:'Compliance Calendar',dues:'Dues',statement:'Client Statement',attendance:'Attendance',leave:'Leave',discipline:'Discipline',reports:'Reports & Analytics',dpdp:'DPDP Act'};
   // Permission gate
   var permGate={clients:'view_clients',recurring:'manage_recurring',team:'view_team'};
   if(id==='access'&&!isPartner()){ showView('dashboard',null); return; }
+  if(id==='dpdp'&&!isPartner()){ showView('dashboard',null); return; }
   if(id==='billing'&&!canSeeBilling()){ showView('dashboard',null); return; }
+  if((id==='dues'||id==='statement')&&!canSeeBilling()){ showView('dashboard',null); return; }
   else if(permGate[id]&&!hasPermission(permGate[id])){ showView('dashboard',null); return; }
   document.getElementById('topbar-title').textContent=titles[id]||id;
   if(id==='tasks') renderTasks();
@@ -1170,6 +1493,15 @@ function showView(id, btn){
   if(id==='recurring') renderRecurring();
   if(id==='access') renderAccessControl();
   if(id==='templates') renderTemplates();
+  if(id==='engagements') renderEngagements();
+  if(id==='calendar') renderCalendar();
+  if(id==='dues') renderDues();
+  if(id==='statement') renderStatementView();
+  if(id==='attendance') renderAttendance();
+  if(id==='leave') renderLeave();
+  if(id==='discipline') renderDiscipline();
+  if(id==='reports') renderReports();
+  if(id==='dpdp') renderDpdp();
 }
 
 // ── REFRESH ALL ──
@@ -1581,30 +1913,35 @@ function renderClients(){
   if(addBtn) addBtn.style.display=partner?'':'none';
   var data=(DB.clients||[]).filter(function(c){return c.branch===myBranch();});
   var tbody=document.getElementById('clients-tbody');
-  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">👥</div><p>'+(partner?'No clients yet. Add your first client!':'No client data available.')+'</p></div></td></tr>'; return; }
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><div class="icon">👥</div><p>'+(partner?'No clients yet. Add your first client!':'No client data available.')+'</p></div></td></tr>'; return; }
   tbody.innerHTML=data.map(function(c){
+    var modsBadge=(c.modules&&c.modules.length)?c.modules.slice(0,3).map(function(m){return '<span class="badge badge-todo" style="font-size:10px;margin-right:3px;">'+esc(m)+'</span>';}).join('')+(c.modules.length>3?' +'+(c.modules.length-3):''):'—';
     // Non-partners: view only — no PAN/GSTIN/contact details shown, no action buttons
     if(!partner){
       return '<tr>'+
         '<td><strong>'+esc(c.name)+'</strong></td>'+
+        '<td>'+esc(c.code||'—')+'</td>'+
         '<td>'+esc(c.type)+'</td>'+
         '<td><span style="font-size:12px;color:var(--muted);">— Restricted —</span></td>'+
         '<td><span style="font-size:12px;color:var(--muted);">— Restricted —</span></td>'+
-        '<td>'+esc(c.service||'—')+'</td>'+
+        '<td>'+modsBadge+'</td>'+
         '<td><span class="badge badge-'+(c.status==='Active'?'active':'inactive')+'">'+c.status+'</span></td>'+
         '<td><span style="font-size:11px;color:var(--muted);font-style:italic;">View Only</span></td>'+
       '</tr>';
     }
-    return '<tr><td><strong>'+esc(c.name)+'</strong></td><td>'+esc(c.type)+'</td><td><span style="font-size:12px;">'+esc(c.pan||'—')+'</span><br><span style="font-size:11px;color:var(--muted);">'+esc(c.gstin||'—')+'</span></td><td>'+esc(c.contact||'—')+'<br><span style="font-size:12px;color:var(--muted);">'+esc(c.phone||'')+'</span></td><td>'+esc(c.service||'—')+'</td><td><span class="badge badge-'+(c.status==='Active'?'active':'inactive')+'">'+c.status+'</span></td><td class="td-actions"><button class="btn btn-sm btn-gold" onclick="openClientCreds('+c.id+')" title="View portal login credentials">🔑</button><button class="btn btn-sm btn-outline" onclick="editClient('+c.id+')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteClient('+c.id+')">Del</button></td></tr>';
+    return '<tr><td><strong>'+esc(c.name)+'</strong></td><td>'+esc(c.code||'—')+'</td><td>'+esc(c.type)+'</td><td><span style="font-size:12px;">'+esc(c.pan||'—')+'</span><br><span style="font-size:11px;color:var(--muted);">'+esc(c.gstin||'—')+'</span></td><td>'+esc(c.contact||'—')+'<br><span style="font-size:12px;color:var(--muted);">'+esc(c.phone||'')+'</span></td><td>'+modsBadge+'</td><td><span class="badge badge-'+(c.status==='Active'?'active':'inactive')+'">'+c.status+'</span></td><td class="td-actions"><button class="btn btn-sm btn-gold" onclick="openClientCreds('+c.id+')" title="View portal login credentials">🔑</button><button class="btn btn-sm btn-outline" onclick="editClient('+c.id+')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteClient('+c.id+')">Del</button></td></tr>';
   }).join('');
 }
-function openClientModal(){ populateDropdowns(); document.getElementById('client-edit-id').value=''; document.getElementById('client-modal-title').textContent='Add Client'; ['c-name','c-pan','c-gst','c-contact','c-phone','c-email','c-address','c-it-user','c-it-pass','c-gst-user','c-gst-pass'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('c-fee').value=''; document.getElementById('c-status').value='Active'; document.getElementById('c-assignee').value=''; setClientCompliance([]); document.getElementById('modal-client').classList.add('open'); }
-function editClient(id){ populateDropdowns(); var c=DB.clients.find(function(x){return x.id===id;}); if(!c)return; document.getElementById('client-edit-id').value=id; document.getElementById('client-modal-title').textContent='Edit Client'; document.getElementById('c-name').value=c.name; document.getElementById('c-type').value=c.type; document.getElementById('c-pan').value=c.pan||''; document.getElementById('c-gst').value=c.gstin||''; document.getElementById('c-contact').value=c.contact||''; document.getElementById('c-phone').value=c.phone||''; document.getElementById('c-email').value=c.email||''; document.getElementById('c-service').value=c.service; document.getElementById('c-fee').value=c.fee||''; document.getElementById('c-status').value=c.status; document.getElementById('c-address').value=c.address||''; document.getElementById('c-it-user').value=c.itUser||''; document.getElementById('c-it-pass').value=c.itPass||''; document.getElementById('c-gst-user').value=c.gstUser||''; document.getElementById('c-gst-pass').value=c.gstPass||''; document.getElementById('c-assignee').value=c.defaultAssignee||''; setClientCompliance(c.recurringServices||[]); document.getElementById('modal-client').classList.add('open'); }
-function saveClient(){ var name=document.getElementById('c-name').value.trim(); if(!name){alert('Client name required.');return;} var eid=document.getElementById('client-edit-id').value; var cl={name:name,type:document.getElementById('c-type').value,pan:document.getElementById('c-pan').value.toUpperCase(),gstin:document.getElementById('c-gst').value,contact:document.getElementById('c-contact').value,phone:document.getElementById('c-phone').value,email:document.getElementById('c-email').value,service:document.getElementById('c-service').value,fee:document.getElementById('c-fee').value,status:document.getElementById('c-status').value,address:document.getElementById('c-address').value,itUser:document.getElementById('c-it-user').value.trim(),itPass:document.getElementById('c-it-pass').value,gstUser:document.getElementById('c-gst-user').value.trim(),gstPass:document.getElementById('c-gst-pass').value,recurringServices:getClientCompliance(),defaultAssignee:document.getElementById('c-assignee').value}; if(eid){var idx=DB.clients.findIndex(function(x){return x.id==eid;});if(idx>=0){cl.id=+eid;cl.branch=DB.clients[idx].branch||myBranch();DB.clients[idx]=cl;logActivity('Updated client: '+name);}}else{cl.id=DB.nextId.client++;cl.branch=myBranch();DB.clients.push(cl);logActivity('Added client: '+name+' with '+cl.recurringServices.length+' recurring compliance(s)');} save(); var newTasks=generateClientRecurringTasks(); closeModal('modal-client');renderClients();renderDashboard(); toast('Client saved!'+(newTasks>0?' '+newTasks+' recurring tasks created.':''),'success'); }
+function setClientModules(mods){ document.querySelectorAll('.c-module').forEach(function(el){ el.checked=(mods||[]).indexOf(el.value)>=0; }); }
+function getClientModules(){ return Array.from(document.querySelectorAll('.c-module:checked')).map(function(el){return el.value;}); }
+function openClientModal(){ populateDropdowns(); document.getElementById('client-edit-id').value=''; document.getElementById('client-modal-title').textContent='Add Client'; ['c-name','c-code','c-state','c-pan','c-gst','c-contact','c-phone','c-email','c-address','c-it-user','c-it-pass','c-gst-user','c-gst-pass','c-opening-balance','c-opening-date'].forEach(function(id){document.getElementById(id).value='';}); document.getElementById('c-fee').value=''; document.getElementById('c-status').value='Active'; document.getElementById('c-assignee').value=''; document.getElementById('c-code').value='CLI-'+String(DB.nextId.client).padStart(4,'0'); setClientCompliance([]); setClientModules([]); document.getElementById('modal-client').classList.add('open'); }
+function editClient(id){ populateDropdowns(); var c=DB.clients.find(function(x){return x.id===id;}); if(!c)return; document.getElementById('client-edit-id').value=id; document.getElementById('client-modal-title').textContent='Edit Client'; document.getElementById('c-name').value=c.name; document.getElementById('c-code').value=c.code||''; document.getElementById('c-state').value=c.state||''; document.getElementById('c-type').value=c.type; document.getElementById('c-pan').value=c.pan||''; document.getElementById('c-gst').value=c.gstin||''; document.getElementById('c-contact').value=c.contact||''; document.getElementById('c-phone').value=c.phone||''; document.getElementById('c-email').value=c.email||''; document.getElementById('c-service').value=c.service; document.getElementById('c-fee').value=c.fee||''; document.getElementById('c-status').value=c.status; document.getElementById('c-address').value=c.address||''; document.getElementById('c-it-user').value=c.itUser||''; document.getElementById('c-it-pass').value=c.itPass||''; document.getElementById('c-gst-user').value=c.gstUser||''; document.getElementById('c-gst-pass').value=c.gstPass||''; document.getElementById('c-opening-balance').value=c.openingBalance||''; document.getElementById('c-opening-date').value=c.openingDate||''; document.getElementById('c-assignee').value=c.defaultAssignee||''; setClientCompliance(c.recurringServices||[]); setClientModules(c.modules||[]); document.getElementById('modal-client').classList.add('open'); }
+function saveClient(){ var name=document.getElementById('c-name').value.trim(); if(!name){alert('Client name required.');return;} var eid=document.getElementById('client-edit-id').value; var cl={name:name,code:document.getElementById('c-code').value.trim(),state:document.getElementById('c-state').value.trim(),type:document.getElementById('c-type').value,pan:document.getElementById('c-pan').value.toUpperCase(),gstin:document.getElementById('c-gst').value,contact:document.getElementById('c-contact').value,phone:document.getElementById('c-phone').value,email:document.getElementById('c-email').value,service:document.getElementById('c-service').value,fee:document.getElementById('c-fee').value,status:document.getElementById('c-status').value,address:document.getElementById('c-address').value,itUser:document.getElementById('c-it-user').value.trim(),itPass:document.getElementById('c-it-pass').value,gstUser:document.getElementById('c-gst-user').value.trim(),gstPass:document.getElementById('c-gst-pass').value,openingBalance:parseFloat(document.getElementById('c-opening-balance').value)||0,openingDate:document.getElementById('c-opening-date').value,modules:getClientModules(),recurringServices:getClientCompliance(),defaultAssignee:document.getElementById('c-assignee').value}; if(eid){var idx=DB.clients.findIndex(function(x){return x.id==eid;});if(idx>=0){cl.id=+eid;cl.branch=DB.clients[idx].branch||myBranch();DB.clients[idx]=cl;logActivity('Updated client: '+name);}}else{cl.id=DB.nextId.client++;cl.branch=myBranch();DB.clients.push(cl);logActivity('Added client: '+name+' with '+cl.recurringServices.length+' recurring compliance(s)');} save(); var newTasks=generateClientRecurringTasks(); closeModal('modal-client');renderClients();renderDashboard(); toast('Client saved!'+(newTasks>0?' '+newTasks+' recurring tasks created.':''),'success'); }
 function deleteClient(id){ if(!confirm('Delete this client?'))return; var c=DB.clients.find(function(x){return x.id===id;}); DB.clients=DB.clients.filter(function(x){return x.id!==id;}); logActivity('Deleted client: '+(c?c.name:'')); save();renderClients();renderDashboard();toast('Client deleted.'); }
 function openClientCreds(id){
   if(!isPartner()){ toast('Only Partners can view client credentials.','error'); return; }
   var c=DB.clients.find(function(x){return x.id===id;}); if(!c) return;
+  logDpdpAccess(c.name,'Viewed portal credentials','Client credentials lookup');
   document.getElementById('cc-view-name').textContent=c.name;
   function row(label,val,fieldId){
     if(!val) return '<div style="margin-bottom:14px;"><div style="font-size:11px;font-weight:700;color:var(--muted);">'+label+'</div><div style="font-size:13px;color:var(--muted);font-style:italic;">Not saved</div></div>';
@@ -1653,13 +1990,176 @@ function renderBilling(){
   document.getElementById('b-outstanding').textContent='₹'+(total-paid).toLocaleString('en-IN');
   document.getElementById('b-count').textContent=data.length;
   var tbody=document.getElementById('billing-tbody');
-  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">💰</div><p>No invoices raised yet.</p></div></td></tr>'; return; }
-  tbody.innerHTML=data.sort(function(a,b){return new Date(b.date)-new Date(a.date);}).map(function(b,i){
-    return '<tr><td><strong>INV-'+String(b.id).padStart(4,'0')+'</strong></td><td>'+esc(b.client)+'</td><td>'+esc(b.service)+'</td><td style="font-weight:700;">₹'+Number(b.amount).toLocaleString('en-IN')+'</td><td>'+fmtDate(b.date)+'</td><td><span class="badge badge-'+(b.status==='Paid'?'done':b.status==='Pending'?'todo':'progress')+'">'+b.status+'</span></td><td class="td-actions"><button class="btn btn-sm btn-outline" onclick="markPaid('+b.id+')">Mark Paid</button><button class="btn btn-sm btn-danger" onclick="deleteBill('+b.id+')">Del</button></td></tr>';
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="icon">💰</div><p>No invoices raised yet.</p></div></td></tr>'; }
+  else{
+    tbody.innerHTML=data.sort(function(a,b){return new Date(b.date)-new Date(a.date);}).map(function(b){
+      return '<tr><td><strong>INV-'+String(b.id).padStart(4,'0')+'</strong></td><td>'+esc(b.client)+'</td><td style="font-weight:700;">₹'+Number(b.amount).toLocaleString('en-IN')+'</td><td>'+fmtDate(b.date)+'</td><td><span class="badge badge-'+(b.status==='Paid'?'done':b.status==='Pending'?'todo':'progress')+'">'+b.status+'</span></td><td class="td-actions"><button class="btn btn-sm btn-outline" onclick="markPaid('+b.id+')">Mark Paid</button><button class="btn btn-sm btn-outline" onclick="editBilling('+b.id+',\'invoice\')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteBill('+b.id+')">Del</button></td></tr>';
+    }).join('');
+  }
+  switchBillingTab(_billingTab||'invoices');
+}
+var _billingTab='invoices';
+function switchBillingTab(tab){
+  _billingTab=tab;
+  ['quotes','proforma','invoices','receipts'].forEach(function(t){
+    var card=document.getElementById('billing-'+t+'-card'); if(card) card.style.display=(t===tab?'':'none');
+    var btn=document.getElementById('bill-tab-'+t); if(btn){ btn.style.background=(t===tab?'var(--gold)':''); btn.style.color=(t===tab?'#fff':''); btn.style.borderColor=(t===tab?'var(--gold)':''); }
+  });
+  var actions=document.getElementById('billing-tab-actions');
+  var labels={quotes:'+ New Quote',proforma:'+ New Proforma',invoices:'+ New Tax Invoice',receipts:'+ Record Receipt'};
+  if(tab==='receipts') actions.innerHTML='<button class="btn btn-primary" onclick="openReceiptModal()">'+labels[tab]+'</button>';
+  else actions.innerHTML='<button class="btn btn-primary" onclick="openBillingModal(\''+tab.replace(/s$/,'')+'\')">'+labels[tab]+'</button>';
+  if(tab==='quotes') renderQuotes();
+  if(tab==='proforma') renderProforma();
+  if(tab==='receipts') renderReceipts();
+}
+function billDocArray(docType){ return docType==='quote'?DB.quotes:docType==='proforma'?DB.proforma:DB.billing; }
+function billNextId(docType){ return docType==='quote'?DB.nextId.quote++:docType==='proforma'?DB.nextId.proforma++:DB.nextId.billing++; }
+function billPrefix(docType){ return docType==='quote'?'QTE-':docType==='proforma'?'PF-':'INV-'; }
+function renderQuotes(){
+  var data=(DB.quotes||[]).filter(function(q){return q.branch===myBranch();});
+  var tbody=document.getElementById('quotes-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="icon">📝</div><p>No quotes yet.</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.sort(function(a,b){return new Date(b.date)-new Date(a.date);}).map(function(q){
+    return '<tr><td><strong>QTE-'+String(q.id).padStart(4,'0')+'</strong></td><td>'+esc(q.client)+'</td><td style="font-weight:700;">₹'+Number(q.amount).toLocaleString('en-IN')+'</td><td>'+fmtDate(q.date)+'</td><td><span class="badge badge-todo">'+(q.status||'Draft')+'</span></td><td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editBilling('+q.id+',\'quote\')">Edit</button><button class="btn btn-sm btn-gold" onclick="convertBillDoc('+q.id+',\'quote\',\'proforma\')" title="Convert to Proforma">→ Proforma</button><button class="btn btn-sm btn-danger" onclick="deleteBillDoc('+q.id+',\'quote\')">Del</button></td></tr>';
   }).join('');
 }
-function openBillingModal(){ populateDropdowns(); document.getElementById('bill-edit-id').value=''; document.getElementById('billing-modal-title').textContent='Raise Invoice'; document.getElementById('bill-amount').value=''; document.getElementById('bill-notes').value=''; document.getElementById('bill-date').value=today(); document.getElementById('bill-due').value=''; document.getElementById('bill-status').value='Pending'; document.getElementById('modal-billing').classList.add('open'); }
-function saveBilling(){ var client=document.getElementById('bill-client').value; var amt=document.getElementById('bill-amount').value; if(!client||!amt){alert('Client and amount required.');return;} var b={id:DB.nextId.billing++,client:client,service:document.getElementById('bill-service').value,amount:amt,date:document.getElementById('bill-date').value,due:document.getElementById('bill-due').value,status:document.getElementById('bill-status').value,notes:document.getElementById('bill-notes').value,branch:myBranch()}; DB.billing.push(b); logActivity('Raised invoice ₹'+amt+' for '+client); save();closeModal('modal-billing');renderBilling();renderDashboard();toast('Invoice saved!','success'); }
+function renderProforma(){
+  var data=(DB.proforma||[]).filter(function(p){return p.branch===myBranch();});
+  var tbody=document.getElementById('proforma-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="icon">📃</div><p>No proforma invoices yet.</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.sort(function(a,b){return new Date(b.date)-new Date(a.date);}).map(function(p){
+    return '<tr><td><strong>PF-'+String(p.id).padStart(4,'0')+'</strong></td><td>'+esc(p.client)+'</td><td style="font-weight:700;">₹'+Number(p.amount).toLocaleString('en-IN')+'</td><td>'+fmtDate(p.date)+'</td><td><span class="badge badge-todo">'+(p.status||'Draft')+'</span></td><td class="td-actions"><button class="btn btn-sm btn-outline" onclick="editBilling('+p.id+',\'proforma\')">Edit</button><button class="btn btn-sm btn-gold" onclick="convertBillDoc('+p.id+',\'proforma\',\'invoice\')" title="Convert to Tax Invoice">→ Invoice</button><button class="btn btn-sm btn-danger" onclick="deleteBillDoc('+p.id+',\'proforma\')">Del</button></td></tr>';
+  }).join('');
+}
+function convertBillDoc(id,fromType,toType){
+  var arr=billDocArray(fromType); var rec=arr.find(function(x){return x.id===id;}); if(!rec) return;
+  var copy=Object.assign({},rec); copy.id=billNextId(toType); copy.date=today(); copy.status=toType==='invoice'?'Pending':'Draft';
+  billDocArray(toType).push(copy);
+  logActivity('Converted '+billPrefix(fromType)+String(id).padStart(4,'0')+' → '+billPrefix(toType)+String(copy.id).padStart(4,'0'));
+  save();
+  toast('Converted to '+toType+'!','success');
+  switchBillingTab(toType==='quote'?'quotes':toType==='proforma'?'proforma':'invoices');
+}
+function deleteBillDoc(id,docType){
+  if(!confirm('Delete this document?'))return;
+  var arr=billDocArray(docType);
+  if(docType==='quote') DB.quotes=arr.filter(function(x){return x.id!==id;});
+  else if(docType==='proforma') DB.proforma=arr.filter(function(x){return x.id!==id;});
+  save(); renderBilling(); toast('Deleted.');
+}
+function renderReceipts(){
+  var data=(DB.receipts||[]).filter(function(r){return r.branch===myBranch();});
+  var tbody=document.getElementById('receipts-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">🧾</div><p>No receipts recorded yet.</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.sort(function(a,b){return new Date(b.date)-new Date(a.date);}).map(function(r){
+    return '<tr><td><strong>RCT-'+String(r.id).padStart(4,'0')+'</strong></td><td>'+esc(r.client)+'</td><td>'+esc(r.against||'General')+'</td><td style="font-weight:700;">₹'+Number(r.amount).toLocaleString('en-IN')+'</td><td>'+fmtDate(r.date)+'</td><td>'+esc(r.mode)+'</td><td class="td-actions"><button class="btn btn-sm btn-danger" onclick="deleteReceipt('+r.id+')">Del</button></td></tr>';
+  }).join('');
+}
+function openReceiptModal(){
+  populateDropdowns();
+  var sel=document.getElementById('rcpt-client'); sel.innerHTML='<option value="">— Select —</option>'+(DB.clients||[]).filter(function(c){return c.branch===myBranch();}).map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
+  document.getElementById('rcpt-edit-id').value=''; document.getElementById('rcpt-amount').value=''; document.getElementById('rcpt-date').value=today(); document.getElementById('rcpt-against').innerHTML='<option value="">— General / Advance —</option>';
+  document.getElementById('modal-receipt').classList.add('open');
+}
+function populateRcptInvoices(){
+  var client=document.getElementById('rcpt-client').value;
+  var invs=(DB.billing||[]).filter(function(b){return b.client===client&&b.status!=='Paid';});
+  document.getElementById('rcpt-against').innerHTML='<option value="">— General / Advance —</option>'+invs.map(function(b){return '<option value="INV-'+String(b.id).padStart(4,'0')+'">INV-'+String(b.id).padStart(4,'0')+' — ₹'+Number(b.amount).toLocaleString('en-IN')+'</option>';}).join('');
+}
+function saveReceipt(){
+  var client=document.getElementById('rcpt-client').value; var amt=parseFloat(document.getElementById('rcpt-amount').value)||0;
+  if(!client||!amt){ alert('Client and amount are required.'); return; }
+  var r={id:DB.nextId.receipt++,client:client,against:document.getElementById('rcpt-against').value,amount:amt,date:document.getElementById('rcpt-date').value,mode:document.getElementById('rcpt-mode').value,branch:myBranch()};
+  DB.receipts.push(r);
+  var against=r.against; if(against){ var invId=parseInt(against.replace('INV-',''),10); var inv=DB.billing.find(function(x){return x.id===invId;}); if(inv){ inv.status='Paid'; } }
+  logActivity('Recorded receipt ₹'+amt.toLocaleString('en-IN')+' from '+client);
+  save(); closeModal('modal-receipt'); renderBilling(); renderDashboard(); toast('Receipt saved!','success');
+}
+function deleteReceipt(id){ if(!confirm('Delete this receipt?'))return; DB.receipts=DB.receipts.filter(function(x){return x.id!==id;}); save(); renderBilling(); toast('Receipt deleted.'); }
+
+// GST line-item invoice builder (shared by Quotes / Proforma / Tax Invoices)
+var _billLines=[];
+function blankBillLine(){ return {desc:'',hsn:'9982',qty:1,rate:0,gst:18}; }
+function renderBillLines(){
+  var wrap=document.getElementById('bill-lines'); if(!wrap) return;
+  var nonGst=document.getElementById('bill-non-gst').checked;
+  wrap.innerHTML=_billLines.map(function(l,i){
+    return '<div style="display:grid;grid-template-columns:2fr 90px 60px 90px 70px 90px 30px;gap:8px;margin-bottom:6px;align-items:center;">'+
+      '<input type="text" value="'+esc(l.desc)+'" placeholder="Service description" oninput="updateBillLine('+i+',\'desc\',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">'+
+      '<input type="text" value="'+esc(l.hsn)+'" oninput="updateBillLine('+i+',\'hsn\',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">'+
+      '<input type="number" value="'+l.qty+'" oninput="updateBillLine('+i+',\'qty\',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">'+
+      '<input type="number" value="'+l.rate+'" oninput="updateBillLine('+i+',\'rate\',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">'+
+      '<input type="number" value="'+(nonGst?0:l.gst)+'" '+(nonGst?'disabled':'')+' oninput="updateBillLine('+i+',\'gst\',this.value)" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;">'+
+      '<span style="font-size:12px;font-weight:600;">₹'+(l.qty*l.rate).toFixed(2)+'</span>'+
+      '<button type="button" onclick="removeBillLine('+i+')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;">✕</button>'+
+    '</div>';
+  }).join('');
+  recalcBillTotals();
+}
+function updateBillLine(i,field,val){ _billLines[i][field]=(field==='desc'||field==='hsn')?val:(parseFloat(val)||0); renderBillLines(); }
+function addBillLine(){ _billLines.push(blankBillLine()); renderBillLines(); }
+function removeBillLine(i){ if(_billLines.length<=1) return; _billLines.splice(i,1); renderBillLines(); }
+function toggleNonGst(){ renderBillLines(); }
+function checkNonGstBilling(){ /* placeholder for future auto-detection by client state */ }
+function recalcBillTotals(){
+  var nonGst=document.getElementById('bill-non-gst').checked;
+  var subtotal=0, gstTotal=0;
+  _billLines.forEach(function(l){ var amt=l.qty*l.rate; subtotal+=amt; gstTotal+=nonGst?0:(amt*(l.gst||0)/100); });
+  var cgst=gstTotal/2, sgst=gstTotal/2;
+  document.getElementById('bill-subtotal').textContent='₹'+subtotal.toFixed(2);
+  document.getElementById('bill-cgst').textContent='₹'+cgst.toFixed(2);
+  document.getElementById('bill-sgst').textContent='₹'+sgst.toFixed(2);
+  document.getElementById('bill-total').textContent='₹'+(subtotal+gstTotal).toFixed(2);
+  document.getElementById('bill-cgst-row').style.display=nonGst?'none':'';
+  document.getElementById('bill-sgst-row').style.display=nonGst?'none':'';
+}
+function openBillingModal(docType){
+  docType=docType||'invoice';
+  populateDropdowns();
+  document.getElementById('bill-doc-type').value=docType;
+  document.getElementById('bill-edit-id').value='';
+  document.getElementById('billing-modal-title').textContent=docType==='quote'?'New Quote':docType==='proforma'?'New Proforma Invoice':'New Tax Invoice';
+  document.getElementById('bill-save-btn').textContent='Save '+(docType==='quote'?'Quote':docType==='proforma'?'Proforma':'Invoice');
+  document.getElementById('bill-date').value=today(); document.getElementById('bill-due').value=''; document.getElementById('bill-status').value='Pending'; document.getElementById('bill-notes').value=''; document.getElementById('bill-non-gst').checked=false;
+  _billLines=[blankBillLine()];
+  renderBillLines();
+  document.getElementById('modal-billing').classList.add('open');
+}
+function editBilling(id,docType){
+  var rec=billDocArray(docType).find(function(x){return x.id===id;}); if(!rec) return;
+  populateDropdowns();
+  document.getElementById('bill-doc-type').value=docType;
+  document.getElementById('bill-edit-id').value=id;
+  document.getElementById('billing-modal-title').textContent='Edit '+(docType==='quote'?'Quote':docType==='proforma'?'Proforma':'Invoice');
+  document.getElementById('bill-save-btn').textContent='Save';
+  document.getElementById('bill-client').value=rec.client;
+  document.getElementById('bill-date').value=rec.date||today();
+  document.getElementById('bill-due').value=rec.due||'';
+  document.getElementById('bill-status').value=rec.status||'Pending';
+  document.getElementById('bill-notes').value=rec.notes||'';
+  document.getElementById('bill-non-gst').checked=!!rec.nonGst;
+  _billLines=(rec.lines&&rec.lines.length)?JSON.parse(JSON.stringify(rec.lines)):[blankBillLine()];
+  renderBillLines();
+  document.getElementById('modal-billing').classList.add('open');
+}
+function saveBilling(){
+  var docType=document.getElementById('bill-doc-type').value;
+  var client=document.getElementById('bill-client').value;
+  if(!client){ alert('Client is required.'); return; }
+  if(!_billLines.length||!_billLines.some(function(l){return l.desc.trim();})){ alert('At least one line item with a description is required.'); return; }
+  var nonGst=document.getElementById('bill-non-gst').checked;
+  var subtotal=0, gstTotal=0;
+  _billLines.forEach(function(l){ var amt=l.qty*l.rate; subtotal+=amt; gstTotal+=nonGst?0:(amt*(l.gst||0)/100); });
+  var total=subtotal+gstTotal;
+  var eid=document.getElementById('bill-edit-id').value;
+  var rec={client:client,service:_billLines[0].desc,lines:JSON.parse(JSON.stringify(_billLines)),nonGst:nonGst,subtotal:subtotal,cgst:gstTotal/2,sgst:gstTotal/2,amount:total,date:document.getElementById('bill-date').value,due:document.getElementById('bill-due').value,status:document.getElementById('bill-status').value,notes:document.getElementById('bill-notes').value};
+  var arr=billDocArray(docType);
+  if(eid){ var idx=arr.findIndex(function(x){return x.id==eid;}); if(idx>=0){ rec.id=+eid; rec.branch=arr[idx].branch||myBranch(); arr[idx]=rec; logActivity('Updated '+billPrefix(docType)+String(rec.id).padStart(4,'0')); } }
+  else{ rec.id=billNextId(docType); rec.branch=myBranch(); arr.push(rec); logActivity((docType==='invoice'?'Raised invoice':'Created '+docType)+' ₹'+total.toLocaleString('en-IN')+' for '+client); }
+  save(); closeModal('modal-billing'); renderBilling(); renderDashboard();
+  toast((docType==='invoice'?'Invoice':docType==='quote'?'Quote':'Proforma')+' saved!','success');
+}
 function markPaid(id){ var b=DB.billing.find(function(x){return x.id===id;}); if(b){b.status='Paid';logActivity('Invoice INV-'+String(id).padStart(4,'0')+' marked as paid');save();renderBilling();renderDashboard();toast('Marked as paid!','success');} }
 function deleteBill(id){ if(!confirm('Delete this invoice?'))return; DB.billing=DB.billing.filter(function(x){return x.id!==id;}); save();renderBilling();renderDashboard();toast('Invoice deleted.'); }
 
@@ -1756,8 +2256,8 @@ function populateDropdowns(){
   var cOpts='<option value="">— None —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
   var tOpts='<option value="">— Unassigned —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>';}).join('');
   var tOptsTransfer='<option value="">— Select Member —</option>'+team.map(function(m){return '<option value="'+esc(m.name)+'">'+esc(m.name)+'</option>';}).join('');
-  ['t-client','dl-client','doc-client','bill-client'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=id==='bill-client'?'<option value="">— Select —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join(''):cOpts;});
-  ['t-assignee','dl-assignee','c-assignee'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=tOpts;});
+  ['t-client','dl-client','doc-client','bill-client','eng-client'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=(id==='bill-client'||id==='eng-client')?'<option value="">— Select —</option>'+clients.map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join(''):cOpts;});
+  ['t-assignee','dl-assignee','c-assignee','eng-assignee'].forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=tOpts;});
   var ttEl=document.getElementById('transfer-to'); if(ttEl) ttEl.innerHTML=tOptsTransfer;
 }
 function openQuickAdd(){ document.getElementById('modal-quickadd').classList.add('open'); }
@@ -1825,9 +2325,17 @@ function updateSidebarForRole(){
   // Access control: partners only
   var accessEl=document.getElementById('nav-access');
   if(accessEl) accessEl.style.display=partner?'':'none';
-  // Templates: always visible to all logged-in users
-  var tplEl=document.getElementById('nav-templates');
-  if(tplEl) tplEl.style.display='';
+  // Templates, Engagements, Calendar, Attendance, Leave, Discipline, Reports: visible to all logged-in users
+  ['templates','engagements','calendar','attendance','leave','discipline','reports'].forEach(function(key){
+    var el=document.getElementById('nav-'+key); if(el) el.style.display='';
+  });
+  // DPDP Act: partners only
+  var dpdpEl=document.getElementById('nav-dpdp');
+  if(dpdpEl) dpdpEl.style.display=partner?'':'none';
+  // Dues & Statement: same visibility as Billing
+  ['dues','statement'].forEach(function(key){
+    var el=document.getElementById('nav-'+key); if(el) el.style.display=canSeeBilling()?'':'none';
+  });
   // Other permission-gated items
   var gated={clients2:'view_clients',recurring:'manage_recurring',team:'view_team'};
   Object.keys(gated).forEach(function(key){
@@ -2627,6 +3135,414 @@ function openTemplate(id){
       '</div>';
     }).join('');
   document.getElementById('modal-template').classList.add('open');
+}
+
+// ── CLIENT BULK IMPORT/EXPORT (CSV) ──
+function downloadClientTemplate(){
+  var header='Name,ClientCode,Type,PAN,GSTIN,Contact,Phone,Email,Service,Fee,Status\n';
+  var sample='ABC Pvt Ltd,CLI-0001,Private Limited,ABCDE1234F,21ABCDE1234F1Z5,Ramesh Kumar,+91-9876543210,ramesh@abc.com,GST & Compliance,50000,Active\n';
+  downloadTextFile('client_import_template.csv', header+sample);
+}
+function downloadTextFile(filename, content){
+  var blob=new Blob([content],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function parseCsv(text){
+  var lines=text.split(/\r?\n/).filter(function(l){return l.trim();});
+  return lines.map(function(l){ return l.split(',').map(function(c){return c.trim();}); });
+}
+function importClientsCsv(evt){
+  var file=evt.target.files[0]; if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var rows=parseCsv(e.target.result);
+    if(rows.length<2){ toast('No data rows found in CSV.','error'); return; }
+    var header=rows[0].map(function(h){return h.toLowerCase();});
+    var idx={name:header.indexOf('name'),code:header.indexOf('clientcode'),type:header.indexOf('type'),pan:header.indexOf('pan'),gstin:header.indexOf('gstin'),contact:header.indexOf('contact'),phone:header.indexOf('phone'),email:header.indexOf('email'),service:header.indexOf('service'),fee:header.indexOf('fee'),status:header.indexOf('status')};
+    var added=0;
+    for(var i=1;i<rows.length;i++){
+      var r=rows[i]; var name=r[idx.name]; if(!name) continue;
+      DB.clients.push({id:DB.nextId.client++,name:name,code:idx.code>=0?r[idx.code]:('CLI-'+String(DB.nextId.client).padStart(4,'0')),type:idx.type>=0?r[idx.type]:'Private Limited',pan:idx.pan>=0?r[idx.pan]:'',gstin:idx.gstin>=0?r[idx.gstin]:'',contact:idx.contact>=0?r[idx.contact]:'',phone:idx.phone>=0?r[idx.phone]:'',email:idx.email>=0?r[idx.email]:'',service:idx.service>=0?r[idx.service]:'GST & Compliance',fee:idx.fee>=0?r[idx.fee]:'',status:idx.status>=0?r[idx.status]:'Active',recurringServices:[],modules:[],branch:myBranch()});
+      added++;
+    }
+    logActivity('Bulk-imported '+added+' client(s) via CSV');
+    save(); renderClients(); toast(added+' client(s) imported!','success');
+    evt.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+// ── ENGAGEMENTS ──
+function renderEngagements(){
+  var fyFilter=(document.getElementById('eng-filter-fy').value||'').trim();
+  var data=(DB.engagements||[]).filter(function(e){ return e.branch===myBranch() && (!fyFilter||e.fy===fyFilter); });
+  var tbody=document.getElementById('engagements-tbody');
+  var addBtn=document.getElementById('btn-add-engagement'); if(addBtn) addBtn.style.display=isPartner()?'':'none';
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="icon">📁</div><p>No engagements match.</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.map(function(e){
+    var actions=isPartner()?'<button class="btn btn-sm btn-outline" onclick="editEngagement('+e.id+')">Edit</button><button class="btn btn-sm btn-danger" onclick="deleteEngagement('+e.id+')">Del</button>':'<span style="font-size:11px;color:var(--muted);">View only</span>';
+    return '<tr><td><strong>'+esc(e.client)+'</strong></td><td>'+esc(e.type)+'</td><td>'+esc(e.fy)+'</td><td><span class="badge badge-'+(e.status==='Completed'?'done':e.status==='In Progress'?'progress':'todo')+'">'+esc(e.status)+'</span></td><td>'+esc(e.assignee||'—')+'</td><td class="td-actions">'+actions+'</td></tr>';
+  }).join('');
+}
+function openEngagementModal(){ populateDropdowns(); document.getElementById('eng-edit-id').value=''; document.getElementById('eng-client').value=''; document.getElementById('eng-fy').value=''; document.getElementById('eng-assignee').value=''; document.getElementById('eng-status').value='Not Started'; document.getElementById('eng-notes').value=''; document.getElementById('modal-engagement').classList.add('open'); }
+function editEngagement(id){ var e=DB.engagements.find(function(x){return x.id===id;}); if(!e)return; populateDropdowns(); document.getElementById('eng-edit-id').value=id; document.getElementById('eng-client').value=e.client; document.getElementById('eng-type').value=e.type; document.getElementById('eng-fy').value=e.fy; document.getElementById('eng-assignee').value=e.assignee||''; document.getElementById('eng-status').value=e.status; document.getElementById('eng-notes').value=e.notes||''; document.getElementById('modal-engagement').classList.add('open'); }
+function saveEngagement(){
+  var client=document.getElementById('eng-client').value; var fy=document.getElementById('eng-fy').value.trim();
+  if(!client||!fy){ alert('Client and Financial Year are required.'); return; }
+  var eid=document.getElementById('eng-edit-id').value;
+  var rec={client:client,type:document.getElementById('eng-type').value,fy:fy,assignee:document.getElementById('eng-assignee').value,status:document.getElementById('eng-status').value,notes:document.getElementById('eng-notes').value};
+  if(eid){ var idx=DB.engagements.findIndex(function(x){return x.id==eid;}); if(idx>=0){ rec.id=+eid; rec.branch=DB.engagements[idx].branch; DB.engagements[idx]=rec; logActivity('Updated engagement: '+client+' — '+rec.type); } }
+  else{ rec.id=DB.nextId.engagement++; rec.branch=myBranch(); DB.engagements.push(rec); logActivity('New engagement: '+client+' — '+rec.type+' ('+fy+')'); }
+  save(); closeModal('modal-engagement'); renderEngagements(); toast('Engagement saved!','success');
+}
+function deleteEngagement(id){ if(!confirm('Delete this engagement?'))return; DB.engagements=DB.engagements.filter(function(x){return x.id!==id;}); save(); renderEngagements(); toast('Engagement deleted.'); }
+function rolloverEngagements(){
+  var fromFy=document.getElementById('ro-from-fy').value.trim(); var toFy=document.getElementById('ro-to-fy').value.trim();
+  if(!fromFy||!toFy){ alert('Enter both From FY and To FY.'); return; }
+  var source=(DB.engagements||[]).filter(function(e){return e.branch===myBranch()&&e.fy===fromFy;});
+  if(!source.length){ toast('No engagements found for FY '+fromFy+' in your branch.','error'); return; }
+  var created=0;
+  source.forEach(function(e){
+    var exists=(DB.engagements||[]).some(function(x){return x.branch===myBranch()&&x.fy===toFy&&x.client===e.client&&x.type===e.type;});
+    if(exists) return;
+    DB.engagements.push({id:DB.nextId.engagement++,client:e.client,type:e.type,fy:toFy,assignee:e.assignee,status:'Not Started',notes:e.notes,branch:myBranch()});
+    created++;
+  });
+  logActivity('FY Rollover: generated '+created+' engagement(s) for FY '+toFy+' from '+fromFy);
+  save(); renderEngagements(); toast(created+' engagement(s) generated for FY '+toFy+'!','success');
+}
+
+// ── COMPLIANCE CALENDAR ──
+var COMPLIANCE_MASTER=[
+  {law:'GST',form:'GSTR-1 (Monthly)',day:11,freq:'monthly'},{law:'GST',form:'GSTR-3B (Monthly)',day:20,freq:'monthly'},
+  {law:'TDS/TCS',form:'TDS Deposit (Challan)',day:7,freq:'monthly'},{law:'TDS/TCS',form:'TDS Return (Quarterly)',day:31,freq:'quarterly'},
+  {law:'PF',form:'PF ECR (Monthly)',day:15,freq:'monthly'},{law:'ESI',form:'ESI Challan (Monthly)',day:15,freq:'monthly'},
+  {law:'Professional Tax',form:'PT Payment (Monthly)',day:20,freq:'monthly'},
+  {law:'Income Tax',form:'Advance Tax (Quarterly)',day:15,freq:'quarterly'},{law:'Income Tax',form:'TDS Certificate Issue',day:15,freq:'quarterly'},
+  {law:'ROC/MCA',form:'DIR-3 KYC (Annual)',day:30,month:8,freq:'annual'},{law:'ROC/MCA',form:'AOC-4 (Annual)',day:29,month:9,freq:'annual'},{law:'ROC/MCA',form:'MGT-7 (Annual)',day:28,month:10,freq:'annual'}
+];
+function seedComplianceCalendar(){
+  var now=new Date(); var yr=now.getFullYear(); var count=0;
+  if(!DB.complianceCalendar) DB.complianceCalendar=[];
+  var quarterMonths=[2,5,8,11]; // Mar, Jun, Sep, Dec
+  COMPLIANCE_MASTER.forEach(function(item){
+    var months;
+    if(item.freq==='monthly') months=[0,1,2,3,4,5,6,7,8,9,10,11];
+    else if(item.freq==='quarterly') months=quarterMonths;
+    else months=[item.month!=null?item.month:8];
+    months.forEach(function(m){
+      var dueDate=new Date(yr,m,item.day);
+      var period=item.freq==='annual'?('FY '+yr):dueDate.toLocaleString('default',{month:'short'})+' '+dueDate.getFullYear();
+      var key=myBranch()+'-'+item.law+'-'+item.form+'-'+period;
+      var exists=DB.complianceCalendar.some(function(c){return c.key===key;});
+      if(exists) return;
+      DB.complianceCalendar.push({id:Date.now()+Math.floor(Math.random()*100000),key:key,law:item.law,form:item.form,period:period,due:dueDate.toISOString().split('T')[0],status:'Pending',branch:myBranch()});
+      count++;
+    });
+  });
+  logActivity('Seeded compliance calendar with '+count+' item(s)');
+  save(); renderCalendar(); toast('Seeded '+count+' compliance item(s)!','success');
+}
+function renderCalendar(){
+  var search=(document.getElementById('cal-search').value||'').toLowerCase();
+  var lawFilter=document.getElementById('cal-law-filter').value;
+  var data=(DB.complianceCalendar||[]).filter(function(c){
+    if(c.branch!==myBranch()) return false;
+    if(lawFilter&&c.law!==lawFilter) return false;
+    if(search&&!(c.form.toLowerCase().indexOf(search)>=0||c.period.toLowerCase().indexOf(search)>=0)) return false;
+    return true;
+  });
+  var tbody=document.getElementById('calendar-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="icon">🗓️</div><p>No compliance items yet. Click "Seed Master Calendar" above.</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.sort(function(a,b){return new Date(a.due)-new Date(b.due);}).map(function(c){
+    var overdue=c.status!=='Filed'&&daysUntil(c.due)<0;
+    return '<tr><td><span class="badge badge-todo">'+esc(c.law)+'</span></td><td>'+esc(c.form)+'</td><td>'+esc(c.period)+'</td><td style="'+(overdue?'color:var(--red);font-weight:700;':'')+'">'+fmtDate(c.due)+'</td><td><span class="badge badge-'+(c.status==='Filed'?'done':overdue?'todo':'progress')+'" style="'+(overdue?'background:#fed7d7;color:var(--red);':'')+'">'+(overdue?'Overdue':c.status)+'</span></td><td class="td-actions">'+(c.status!=='Filed'?'<button class="btn btn-sm btn-outline" onclick="markCalendarFiled('+c.id+')">Mark Filed</button>':'—')+'</td></tr>';
+  }).join('');
+}
+function markCalendarFiled(id){ var c=(DB.complianceCalendar||[]).find(function(x){return x.id===id;}); if(!c) return; c.status='Filed'; c.filedOn=new Date().toISOString(); logActivity('Marked filed: '+c.form+' ('+c.period+')'); save(); renderCalendar(); toast('Marked as filed!','success'); }
+
+// ── DUES ──
+function renderDues(){
+  var invoices=(DB.billing||[]).filter(function(b){return b.branch===myBranch()&&b.status!=='Paid';});
+  var byClient={};
+  invoices.forEach(function(b){ if(!byClient[b.client]) byClient[b.client]={count:0,total:0}; byClient[b.client].count++; byClient[b.client].total+=(+b.amount||0); });
+  var tbody=document.getElementById('dues-tbody');
+  var clients=Object.keys(byClient);
+  if(!clients.length){ tbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><div class="icon">🎉</div><p>No outstanding dues.</p></div></td></tr>'; return; }
+  tbody.innerHTML=clients.map(function(name){
+    var c=(DB.clients||[]).find(function(x){return x.name===name;});
+    var d=byClient[name];
+    return '<tr><td><strong>'+esc(name)+'</strong></td><td>'+esc(c&&c.defaultAssignee||'—')+'</td><td>'+d.count+'</td><td style="font-weight:700;color:var(--red);">₹'+d.total.toLocaleString('en-IN')+'</td><td class="td-actions"><button class="btn btn-sm btn-gold" onclick="sendDueReminder(\''+esc(name).replace(/'/g,"\\'")+'\')">🔔 Notify</button></td></tr>';
+  }).join('');
+}
+function sendDueReminder(clientName){
+  var c=(DB.clients||[]).find(function(x){return x.name===clientName;});
+  var staff=c&&c.defaultAssignee;
+  if(staff) notify(staff,'Payment reminder: follow up with '+clientName+' — outstanding dues pending.');
+  logActivity('Sent due reminder for '+clientName);
+  toast('Reminder logged for '+clientName+(staff?' → notified '+staff:'')+'.','success');
+}
+function sendAllDueReminders(){
+  var invoices=(DB.billing||[]).filter(function(b){return b.branch===myBranch()&&b.status!=='Paid';});
+  var clients=[]; invoices.forEach(function(b){ if(clients.indexOf(b.client)<0) clients.push(b.client); });
+  if(!clients.length){ toast('No outstanding dues to remind.'); return; }
+  clients.forEach(function(name){ sendDueReminder(name); });
+  toast('Reminders sent for '+clients.length+' client(s)!','success');
+}
+function exportDuesCsv(){
+  var invoices=(DB.billing||[]).filter(function(b){return b.branch===myBranch()&&b.status!=='Paid';});
+  var byClient={};
+  invoices.forEach(function(b){ if(!byClient[b.client]) byClient[b.client]=0; byClient[b.client]+=(+b.amount||0); });
+  var rows=['Client,Outstanding (INR)'];
+  Object.keys(byClient).forEach(function(name){ rows.push('"'+name+'",'+byClient[name]); });
+  downloadTextFile('dues_'+myBranch().replace(/\s/g,'_')+'.csv', rows.join('\n'));
+}
+
+// ── CLIENT STATEMENT ──
+function renderStatementView(){
+  var sel=document.getElementById('stmt-client');
+  if(!sel.options.length||sel.dataset.populated!=='1'){
+    sel.innerHTML='<option value="">— Select Client —</option>'+(DB.clients||[]).filter(function(c){return c.branch===myBranch();}).map(function(c){return '<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';}).join('');
+    sel.dataset.populated='1';
+  }
+  var client=sel.value; var fy=(document.getElementById('stmt-fy').value||'').trim();
+  var body=document.getElementById('statement-body');
+  if(!client){ body.innerHTML='<p style="color:var(--muted);font-size:13px;">Select a client to view their statement.</p>'; return; }
+  var c=(DB.clients||[]).find(function(x){return x.name===client;});
+  var opening=c&&c.openingBalance||0;
+  var invoices=(DB.billing||[]).filter(function(b){return b.client===client&&(!fy||fyOf(b.date)===fy);});
+  var receipts=(DB.receipts||[]).filter(function(r){return r.client===client&&(!fy||fyOf(r.date)===fy);});
+  var txns=invoices.map(function(b){return {date:b.date,desc:'Invoice INV-'+String(b.id).padStart(4,'0'),debit:+b.amount||0,credit:0};})
+    .concat(receipts.map(function(r){return {date:r.date,desc:'Receipt RCT-'+String(r.id).padStart(4,'0')+' ('+r.mode+')',debit:0,credit:+r.amount||0};}))
+    .sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+  var bal=opening;
+  var rows=txns.map(function(t){ bal+=t.debit-t.credit; return '<tr><td>'+fmtDate(t.date)+'</td><td>'+esc(t.desc)+'</td><td>'+(t.debit?'₹'+t.debit.toLocaleString('en-IN'):'—')+'</td><td>'+(t.credit?'₹'+t.credit.toLocaleString('en-IN'):'—')+'</td><td style="font-weight:700;">₹'+bal.toLocaleString('en-IN')+'</td></tr>'; }).join('');
+  body.innerHTML='<div class="table-wrap"><table><thead><tr><th>Date</th><th>Description</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead><tbody>'+
+    '<tr style="background:var(--cream);"><td colspan="4"><strong>Opening Balance</strong></td><td style="font-weight:700;">₹'+opening.toLocaleString('en-IN')+'</td></tr>'+
+    (rows||'<tr><td colspan="5" style="text-align:center;color:var(--muted);">No transactions'+(fy?' in FY '+fy:'')+'.</td></tr>')+
+    '<tr style="background:var(--cream);"><td colspan="4"><strong>Closing Balance</strong></td><td style="font-weight:700;">₹'+bal.toLocaleString('en-IN')+'</td></tr>'+
+    '</tbody></table></div>';
+}
+function fyOf(dateStr){ if(!dateStr) return ''; var d=new Date(dateStr); var y=d.getMonth()>=3?d.getFullYear():d.getFullYear()-1; return y+'-'+String((y+1)).slice(-2); }
+function exportStatementCsv(){
+  var client=document.getElementById('stmt-client').value; if(!client){ alert('Select a client first.'); return; }
+  var body=document.getElementById('statement-body').innerText;
+  downloadTextFile('statement_'+client.replace(/\s/g,'_')+'.csv', body);
+}
+
+// ── ATTENDANCE ──
+function renderAttendance(){
+  var dateEl=document.getElementById('att-date');
+  if(!dateEl.value) dateEl.value=today();
+  var date=dateEl.value;
+  var me=DB.currentUser?DB.currentUser.name:'';
+  var myRec=(DB.attendance||[]).find(function(a){return a.name===me&&a.date===date;});
+  document.getElementById('attendance-my-status').textContent=myRec?('Checked in at '+(myRec.checkIn||'—')+(myRec.checkOut?', out at '+myRec.checkOut:'')):'Not checked in today.';
+  document.getElementById('btn-checkin').style.display=(myRec&&myRec.checkIn)?'none':'';
+  document.getElementById('btn-checkout').style.display=(myRec&&myRec.checkIn&&!myRec.checkOut)?'':'none';
+  var team=(DB.team||[]).filter(function(m){return m.branch===myBranch();});
+  var records=(DB.attendance||[]).filter(function(a){return a.date===date;});
+  var present=0,late=0,absent=0;
+  var tbody=document.getElementById('attendance-tbody');
+  tbody.innerHTML=team.map(function(m){
+    var rec=records.find(function(a){return a.name===m.name;});
+    var status=rec?(rec.late?'Late':'Present'):'Absent';
+    if(status==='Present') present++; else if(status==='Late') late++; else absent++;
+    return '<tr><td>'+esc(m.name)+'</td><td>'+(rec?esc(rec.checkIn||'—'):'—')+'</td><td>'+(rec?esc(rec.checkOut||'—'):'—')+'</td><td><span class="badge badge-'+(status==='Present'?'done':status==='Late'?'progress':'todo')+'">'+status+'</span></td></tr>';
+  }).join('');
+  document.getElementById('att-present').textContent=present;
+  document.getElementById('att-late').textContent=late;
+  document.getElementById('att-absent').textContent=absent;
+}
+function checkIn(){
+  var me=DB.currentUser?DB.currentUser.name:''; var date=today(); var now=new Date();
+  var timeStr=now.toTimeString().slice(0,5);
+  var late=(now.getHours()>10||(now.getHours()===10&&now.getMinutes()>15));
+  if(!DB.attendance) DB.attendance=[];
+  var rec=DB.attendance.find(function(a){return a.name===me&&a.date===date;});
+  if(rec){ rec.checkIn=timeStr; rec.late=late; } else { DB.attendance.push({id:Date.now(),name:me,date:date,checkIn:timeStr,checkOut:'',late:late,branch:myBranch()}); }
+  logActivity('Checked in at '+timeStr); save(); renderAttendance(); toast('Checked in at '+timeStr+'!','success');
+}
+function checkOut(){
+  var me=DB.currentUser?DB.currentUser.name:''; var date=today(); var timeStr=new Date().toTimeString().slice(0,5);
+  var rec=(DB.attendance||[]).find(function(a){return a.name===me&&a.date===date;}); if(!rec) return;
+  rec.checkOut=timeStr; logActivity('Checked out at '+timeStr); save(); renderAttendance(); toast('Checked out at '+timeStr+'!','success');
+}
+
+// ── LEAVE ──
+var _leaveTab='mine';
+function switchLeaveTab(tab){
+  _leaveTab=tab;
+  document.getElementById('leave-tab-mine').style.background=tab==='mine'?'var(--gold)':''; document.getElementById('leave-tab-mine').style.color=tab==='mine'?'#fff':'';
+  document.getElementById('leave-tab-team').style.background=tab==='team'?'var(--gold)':''; document.getElementById('leave-tab-team').style.color=tab==='team'?'#fff':'';
+  renderLeave();
+}
+function renderLeave(){
+  var me=DB.currentUser?DB.currentUser.name:''; var partner=isPartner();
+  var data=(DB.leaveRequests||[]).filter(function(l){return l.branch===myBranch();});
+  if(_leaveTab==='mine') data=data.filter(function(l){return l.name===me;});
+  document.getElementById('leave-tab-team').style.display=partner?'':'none';
+  var tbody=document.getElementById('leave-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="icon">🌴</div><p>No requests.</p></div></td></tr>'; return; }
+  tbody.innerHTML=data.sort(function(a,b){return new Date(b.start)-new Date(a.start);}).map(function(l){
+    var days=Math.round((new Date(l.end)-new Date(l.start))/86400000)+1;
+    var actions='—';
+    if(_leaveTab==='team'&&partner&&l.status==='Pending') actions='<button class="btn btn-sm btn-gold" onclick="approveLeave('+l.id+')">Approve</button> <button class="btn btn-sm btn-outline" onclick="rejectLeave('+l.id+')">Reject</button>';
+    return '<tr><td>'+esc(l.name)+'</td><td>'+esc(l.type)+'</td><td>'+fmtDate(l.start)+' – '+fmtDate(l.end)+'</td><td>'+days+'</td><td>'+esc(l.reason||'—')+'</td><td><span class="badge badge-'+(l.status==='Approved'?'done':l.status==='Rejected'?'todo':'progress')+'">'+l.status+'</span></td><td class="td-actions">'+actions+'</td></tr>';
+  }).join('');
+}
+function openLeaveModal(){ document.getElementById('lv-type').value='Casual'; document.getElementById('lv-start').value=''; document.getElementById('lv-end').value=''; document.getElementById('lv-reason').value=''; document.getElementById('modal-leave').classList.add('open'); }
+function saveLeave(){
+  var start=document.getElementById('lv-start').value; var end=document.getElementById('lv-end').value;
+  if(!start||!end){ alert('Start and end dates are required.'); return; }
+  var me=DB.currentUser?DB.currentUser.name:'';
+  if(!DB.leaveRequests) DB.leaveRequests=[];
+  DB.leaveRequests.push({id:DB.nextId.leave++,name:me,type:document.getElementById('lv-type').value,start:start,end:end,reason:document.getElementById('lv-reason').value,status:'Pending',branch:myBranch()});
+  logActivity('Applied for leave: '+start+' to '+end);
+  save(); closeModal('modal-leave'); renderLeave(); toast('Leave request submitted!','success');
+}
+function approveLeave(id){ var l=(DB.leaveRequests||[]).find(function(x){return x.id===id;}); if(!l)return; l.status='Approved'; notify(l.name,'Your leave request ('+l.start+' to '+l.end+') was approved.'); save(); renderLeave(); toast('Leave approved.','success'); }
+function rejectLeave(id){ var l=(DB.leaveRequests||[]).find(function(x){return x.id===id;}); if(!l)return; l.status='Rejected'; notify(l.name,'Your leave request ('+l.start+' to '+l.end+') was rejected.'); save(); renderLeave(); toast('Leave rejected.'); }
+
+// ── DISCIPLINE ──
+function computeDisciplineScore(name){
+  var since=new Date(); since.setDate(since.getDate()-30);
+  var tasks=(DB.tasks||[]).filter(function(t){return t.assignee===name&&t.branch===myBranch();});
+  var completed=tasks.filter(function(t){return t.status==='Done'&&t.completedAt&&new Date(t.completedAt)>=since;});
+  var onTime=completed.filter(function(t){return t.due&&t.completedAt&&new Date(t.completedAt)<=new Date(t.due+'T23:59:59');});
+  var overdue=tasks.filter(function(t){return t.status!=='Done'&&daysUntil(t.due)<0;});
+  var score=completed.length*2+onTime.length-overdue.length;
+  return {completed:completed.length,onTime:onTime.length,overdue:overdue.length,score:Math.max(0,score)};
+}
+function renderDiscipline(){
+  document.getElementById('eom-amount').value=DB.employeeOfMonth.amount||1000;
+  document.getElementById('eom-enabled').checked=!!DB.employeeOfMonth.enabled;
+  var team=(DB.team||[]).filter(function(m){return m.branch===myBranch()&&!isPartnerRole(m.role);});
+  var tbody=document.getElementById('discipline-tbody');
+  if(!team.length){ tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><div class="icon">🏆</div><p>No non-partner staff to score.</p></div></td></tr>'; document.getElementById('eom-winner').textContent=''; return; }
+  var scored=team.map(function(m){ var s=computeDisciplineScore(m.name); return Object.assign({name:m.name},s); });
+  scored.sort(function(a,b){return b.score-a.score;});
+  tbody.innerHTML=scored.map(function(s){
+    var status=s.score>=15?'Excellent':s.score>=8?'Good':s.score>=0?'Fair':'Needs Improvement';
+    return '<tr><td>'+esc(s.name)+'</td><td>'+s.completed+'</td><td>'+s.onTime+'</td><td>'+s.overdue+'</td><td style="font-weight:700;">'+s.score+'</td><td><span class="badge badge-'+(status==='Excellent'?'done':status==='Good'?'progress':'todo')+'">'+status+'</span></td></tr>';
+  }).join('');
+  if(DB.employeeOfMonth.enabled&&scored.length&&scored[0].score>0){
+    document.getElementById('eom-winner').innerHTML='🏆 Current leader: <strong>'+esc(scored[0].name)+'</strong> (Score '+scored[0].score+') — Award ₹'+(DB.employeeOfMonth.amount||1000).toLocaleString('en-IN');
+  } else { document.getElementById('eom-winner').textContent='No eligible activity yet this period.'; }
+}
+function isPartnerRole(role){ return role&&(role.toLowerCase().includes('partner')||role.toLowerCase().includes('managing')); }
+function saveEomSettings(){
+  DB.employeeOfMonth={amount:parseFloat(document.getElementById('eom-amount').value)||0,enabled:document.getElementById('eom-enabled').checked};
+  logActivity('Updated Employee of the Month settings');
+  save(); renderDiscipline(); toast('Saved!','success');
+}
+
+// ── REPORTS ──
+function renderReports(){
+  var tasks=(DB.tasks||[]).filter(function(t){return t.branch===myBranch();});
+  var counts={Todo:0,'In Progress':0,'In Review':0,'Partner Approval':0,Done:0};
+  tasks.forEach(function(t){counts[t.status]=(counts[t.status]||0)+1;});
+  var total=tasks.length||1;
+  document.getElementById('report-task-chart').innerHTML=Object.keys(counts).map(function(k){
+    var pct=Math.round(counts[k]/total*100);
+    var clr={Todo:'#718096','In Progress':'#3182ce','In Review':'#D69E2E','Partner Approval':'#805ad5',Done:'#38a169'}[k];
+    return '<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>'+k+'</span><strong>'+counts[k]+'</strong></div><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;background:'+clr+';"></div></div></div>';
+  }).join('');
+  var days=[]; for(var i=13;i>=0;i--){ var d=new Date(); d.setDate(d.getDate()-i); days.push(d.toISOString().split('T')[0]); }
+  var maxCount=1;
+  var counts2=days.map(function(d){ var c=(DB.attendance||[]).filter(function(a){return a.date===d&&a.branch===myBranch();}).length; if(c>maxCount)maxCount=c; return c; });
+  document.getElementById('report-attendance-chart').innerHTML='<div style="display:flex;align-items:flex-end;gap:4px;height:120px;">'+
+    days.map(function(d,i){ var h=Math.round(counts2[i]/maxCount*100); return '<div style="flex:1;background:var(--gold);height:'+Math.max(h,3)+'%;border-radius:3px 3px 0 0;" title="'+d+': '+counts2[i]+'"></div>'; }).join('')+
+    '</div><div style="font-size:11px;color:var(--muted);margin-top:6px;">Last 14 days · hover a bar for details</div>';
+  var m=document.getElementById('gstr-month'); if(!m.value) m.value=today().slice(0,7);
+}
+function downloadGstr1(){
+  var month=document.getElementById('gstr-month').value; if(!month){ alert('Choose a month.'); return; }
+  var invoices=(DB.billing||[]).filter(function(b){return b.branch===myBranch()&&(b.date||'').slice(0,7)===month;});
+  var rows=['Type,Invoice No,Date,Client,GSTIN,Taxable Value,CGST,SGST,Total,HSN/SAC'];
+  invoices.forEach(function(b){
+    var c=(DB.clients||[]).find(function(x){return x.name===b.client;});
+    var type=(c&&c.gstin)?'B2B':(b.amount>250000?'B2CL':'B2CS');
+    var hsn=(b.lines&&b.lines[0]&&b.lines[0].hsn)||'9982';
+    rows.push(['"'+type+'"','INV-'+String(b.id).padStart(4,'0'),b.date,'"'+b.client+'"',(c&&c.gstin)||'',(b.subtotal||b.amount||0),(b.cgst||0),(b.sgst||0),(b.amount||0),hsn].join(','));
+  });
+  if(invoices.length===0){ toast('No tax invoices found for '+month+' in this branch.','error'); return; }
+  downloadTextFile('GSTR1_'+month+'_'+myBranch().replace(/\s/g,'_')+'.csv', rows.join('\n'));
+  logActivity('Downloaded GSTR-1 export for '+month);
+}
+
+// ── DPDP ACT ──
+var _dpdpTab='audit';
+function switchDpdpTab(tab){ _dpdpTab=tab; renderDpdp(); }
+function logDpdpAccess(entity,action,context){
+  if(!DB.dpdpLog) DB.dpdpLog=[];
+  DB.dpdpLog.push({id:Date.now()+Math.floor(Math.random()*10000),ts:new Date().toISOString(),user:DB.currentUser?DB.currentUser.name:'',entity:entity,action:action,context:context||'',branch:myBranch()});
+  save();
+}
+function renderDpdp(){
+  ['audit','breach','grievance','retention'].forEach(function(t){
+    var btn=document.getElementById('dpdp-tab-'+t); if(!btn) return;
+    btn.style.background=(t===_dpdpTab)?'var(--gold)':''; btn.style.color=(t===_dpdpTab)?'#fff':'';
+  });
+  var body=document.getElementById('dpdp-body');
+  if(_dpdpTab==='audit'){
+    var log=(DB.dpdpLog||[]).filter(function(l){return l.branch===myBranch();}).slice().reverse();
+    body.innerHTML='<div class="card-header"><div class="card-title">Personal-Data Access Audit Trail</div></div><p style="font-size:12px;color:var(--muted);">Section 8(5) — record of every access, export, or edit of client personal data (PAN, GSTIN, portal credentials).</p>'+
+      '<div class="table-wrap"><table><thead><tr><th>When</th><th>User</th><th>Entity</th><th>Action</th><th>Context</th></tr></thead><tbody>'+
+      (log.length?log.map(function(l){return '<tr><td>'+new Date(l.ts).toLocaleString('en-IN')+'</td><td>'+esc(l.user)+'</td><td>'+esc(l.entity)+'</td><td>'+esc(l.action)+'</td><td>'+esc(l.context)+'</td></tr>';}).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);">No log entries.</td></tr>')+
+      '</tbody></table></div>';
+  } else if(_dpdpTab==='breach'){
+    body.innerHTML='<div class="card-header"><div class="card-title">Breach Log</div><button class="btn btn-sm btn-danger" onclick="logDataBreach()">+ Log Breach</button></div>'+
+      '<div class="table-wrap"><table><thead><tr><th>Date</th><th>Description</th><th>Reported By</th></tr></thead><tbody>'+
+      ((DB.dpdpBreaches||[]).filter(function(b){return b.branch===myBranch();}).map(function(b){return '<tr><td>'+fmtDate(b.date)+'</td><td>'+esc(b.desc)+'</td><td>'+esc(b.by)+'</td></tr>';}).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--muted);">No breaches logged. 🎉</td></tr>')+
+      '</tbody></table></div>';
+  } else if(_dpdpTab==='grievance'){
+    body.innerHTML='<div class="card-header"><div class="card-title">Data Principal Grievances</div><button class="btn btn-sm btn-outline" onclick="logGrievance()">+ Log Grievance</button></div>'+
+      '<div class="table-wrap"><table><thead><tr><th>Date</th><th>From</th><th>Details</th><th>Status</th></tr></thead><tbody>'+
+      ((DB.dpdpGrievances||[]).filter(function(g){return g.branch===myBranch();}).map(function(g){return '<tr><td>'+fmtDate(g.date)+'</td><td>'+esc(g.from)+'</td><td>'+esc(g.desc)+'</td><td>'+esc(g.status)+'</td></tr>';}).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);">No grievances logged.</td></tr>')+
+      '</tbody></table></div>';
+  } else {
+    body.innerHTML='<div class="card-header"><div class="card-title">Data Retention Policy</div></div>'+
+      '<p style="font-size:13px;color:var(--muted);line-height:1.7;">Client personal data (PAN, GSTIN, portal credentials, financial records) is retained for the duration of the engagement plus 8 years, in line with the Income Tax Act, 1961 record-keeping requirement, after which it should be securely purged unless a legal hold applies.</p>'+
+      '<p style="font-size:13px;color:var(--muted);margin-top:10px;">Use Team → Access Control to ensure only authorised staff can view client PAN/GSTIN and portal credentials.</p>';
+  }
+}
+function logDataBreach(){
+  var desc=prompt('Describe the data breach incident:'); if(!desc) return;
+  if(!DB.dpdpBreaches) DB.dpdpBreaches=[];
+  DB.dpdpBreaches.push({id:Date.now(),date:today(),desc:desc,by:DB.currentUser?DB.currentUser.name:'',branch:myBranch()});
+  logActivity('Logged a DPDP data breach incident');
+  save(); renderDpdp(); toast('Breach logged.','success');
+}
+function logGrievance(){
+  var from=prompt('Grievance received from (name):'); if(!from) return;
+  var desc=prompt('Grievance details:'); if(!desc) return;
+  if(!DB.dpdpGrievances) DB.dpdpGrievances=[];
+  DB.dpdpGrievances.push({id:Date.now(),date:today(),from:from,desc:desc,status:'Open',branch:myBranch()});
+  logActivity('Logged a DPDP grievance from '+from);
+  save(); renderDpdp(); toast('Grievance logged.','success');
+}
+
+// ── VOICE DICTATION ──
+var _recognition=null, _recognizing=false;
+function toggleVoiceDictation(){
+  var btn=document.getElementById('t-voice-btn');
+  var SpeechRec=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechRec){ toast('Voice dictation is not supported in this browser.','error'); return; }
+  if(_recognizing){ _recognition.stop(); return; }
+  _recognition=new SpeechRec();
+  _recognition.lang='en-IN'; _recognition.continuous=true; _recognition.interimResults=false;
+  _recognition.onstart=function(){ _recognizing=true; btn.textContent='⏹ Stop'; btn.style.background='var(--red)'; btn.style.color='#fff'; };
+  _recognition.onresult=function(e){
+    var ta=document.getElementById('t-notes'); var text='';
+    for(var i=e.resultIndex;i<e.results.length;i++){ text+=e.results[i][0].transcript; }
+    ta.value=(ta.value?ta.value+' ':'')+text;
+  };
+  _recognition.onerror=function(){ toast('Voice recognition error.','error'); };
+  _recognition.onend=function(){ _recognizing=false; btn.textContent='🎤 Voice'; btn.style.background=''; btn.style.color=''; };
+  _recognition.start();
 }
 
 // Click outside modal to close
